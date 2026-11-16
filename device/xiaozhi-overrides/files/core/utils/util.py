@@ -123,12 +123,39 @@ def get_ip_info(ip_addr, logger):
         if cached_ip_info is not None:
             return cached_ip_info
 
-        # 缓存未命中，调用API（直连国内接口，避免走海外代理把所在地识别成代理节点）
-        url = f"https://whois.pconline.com.cn/ipJson.jsp?json=true&ip={urllib.parse.quote(cache_key, safe=':')}"
-        with requests.get(url, timeout=4, proxies={"http": None, "https": None}) as r:
-            r.raise_for_status()
-            resp = r.json()
-        ip_info = {"city": resp.get("city") if isinstance(resp, dict) else None}
+        # 缓存未命中，调用API
+        target_ip = cache_key
+        ip_info = {}
+
+        # 1. 优先尝试支持全球且原生返回中文地名的 ip-api.com
+        try:
+            url = f"http://ip-api.com/json/{urllib.parse.quote(target_ip, safe=':')}?lang=zh-CN"
+            with requests.get(url, timeout=3, proxies={"http": None, "https": None}) as r:
+                if r.status_code == 200:
+                    resp = r.json()
+                    if resp.get("status") == "success" and resp.get("city"):
+                        ip_info = {
+                            "city": resp.get("city"),
+                            "country": resp.get("country"),
+                            "region": resp.get("regionName"),
+                            "lat": resp.get("lat"),
+                            "lon": resp.get("lon"),
+                            "timezone": resp.get("timezone"),
+                        }
+        except Exception as e:
+            logger.bind(tag=TAG).debug(f"ip-api.com lookup failed: {e}")
+
+        # 2. 若失败或未获取到城市，回退到国内接口 (pconline)
+        if not ip_info.get("city"):
+            try:
+                url = f"https://whois.pconline.com.cn/ipJson.jsp?json=true&ip={urllib.parse.quote(target_ip, safe=':')}"
+                with requests.get(url, timeout=3, proxies={"http": None, "https": None}) as r:
+                    if r.status_code == 200:
+                        resp = r.json()
+                        if resp.get("city"):
+                            ip_info = {"city": resp.get("city")}
+            except Exception as e:
+                logger.bind(tag=TAG).debug(f"pconline lookup failed: {e}")
 
         # 存入缓存
         cache_manager.set(CacheType.IP_INFO, cache_key, ip_info)
