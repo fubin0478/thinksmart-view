@@ -285,10 +285,24 @@ class OTAHandler(BaseHandler):
             if not device_version or len(device_version) > 64:
                 device_version = "0.0.0"
 
+            tz_cfg = server_config.get("timezone_offset")
+            if tz_cfg is None or str(tz_cfg).strip().lower() in ("", "auto"):
+                try:
+                    import datetime as _dt
+                    utc_off = _dt.datetime.now().astimezone().utcoffset()
+                    tz_offset_min = int(utc_off.total_seconds() // 60) if utc_off is not None else 8 * 60
+                except Exception:
+                    tz_offset_min = 8 * 60
+            else:
+                try:
+                    tz_offset_min = int(float(tz_cfg) * 60)
+                except Exception:
+                    tz_offset_min = 8 * 60
+
             return_json = {
                 "server_time": {
                     "timestamp": int(round(time.time() * 1000)),
-                    "timezone_offset": server_config.get("timezone_offset", 8) * 60,
+                    "timezone_offset": tz_offset_min,
                 },
                 "firmware": {
                     "version": device_version,
