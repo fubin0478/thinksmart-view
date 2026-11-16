@@ -426,6 +426,121 @@ def weather_cities():
     return out
 
 
+
+WMO_MAP = {
+    0: ("晴", "100", "150"),
+    1: ("晴间多云", "101", "151"),
+    2: ("多云", "101", "151"),
+    3: ("阴", "104", "154"),
+    45: ("雾", "501", "501"),
+    48: ("雾凇", "501", "501"),
+    51: ("轻度毛毛雨", "305", "305"),
+    53: ("毛毛雨", "305", "305"),
+    55: ("密集毛毛雨", "305", "305"),
+    56: ("轻度冻雨", "313", "313"),
+    57: ("密集冻雨", "313", "313"),
+    61: ("小雨", "305", "305"),
+    63: ("中雨", "306", "306"),
+    65: ("大雨", "307", "307"),
+    66: ("轻度冻雨", "313", "313"),
+    67: ("强冻雨", "313", "313"),
+    71: ("小雪", "400", "400"),
+    73: ("中雪", "401", "401"),
+    75: ("大雪", "402", "402"),
+    77: ("雪粒", "400", "400"),
+    80: ("微弱阵雨", "300", "300"),
+    81: ("阵雨", "300", "300"),
+    82: ("强阵雨", "301", "301"),
+    85: ("阵雪", "407", "407"),
+    86: ("强阵雪", "407", "407"),
+    95: ("雷阵雨", "302", "302"),
+    96: ("雷雨伴轻度冰雹", "304", "304"),
+    99: ("雷雨伴强冰雹", "304", "304"),
+}
+
+OPEN_METEO_KNOWN = {
+    "北京": {"name": "北京", "lat": 39.9042, "lon": 116.4074, "adm1": "北京市", "adm2": "北京"},
+    "beijing": {"name": "北京", "lat": 39.9042, "lon": 116.4074, "adm1": "北京市", "adm2": "北京"},
+    "上海": {"name": "上海", "lat": 31.2304, "lon": 121.4737, "adm1": "上海市", "adm2": "上海"},
+    "shanghai": {"name": "上海", "lat": 31.2304, "lon": 121.4737, "adm1": "上海市", "adm2": "上海"},
+    "广州": {"name": "广州", "lat": 23.1291, "lon": 113.2644, "adm1": "广东省", "adm2": "广州"},
+    "guangzhou": {"name": "广州", "lat": 23.1291, "lon": 113.2644, "adm1": "广东省", "adm2": "广州"},
+    "深圳": {"name": "深圳", "lat": 22.5431, "lon": 114.0579, "adm1": "广东省", "adm2": "深圳"},
+    "shenzhen": {"name": "深圳", "lat": 22.5431, "lon": 114.0579, "adm1": "广东省", "adm2": "深圳"},
+    "杭州": {"name": "杭州", "lat": 30.2741, "lon": 120.1551, "adm1": "浙江省", "adm2": "杭州"},
+    "成都": {"name": "成都", "lat": 30.5728, "lon": 104.0668, "adm1": "四川省", "adm2": "成都"},
+    "武汉": {"name": "武汉", "lat": 30.5928, "lon": 114.3055, "adm1": "湖北省", "adm2": "武汉"},
+    "南京": {"name": "南京", "lat": 32.0603, "lon": 118.7969, "adm1": "江苏省", "adm2": "南京"},
+    "西安": {"name": "西安", "lat": 34.3416, "lon": 108.9398, "adm1": "陕西省", "adm2": "西安"},
+    "重庆": {"name": "重庆", "lat": 29.5630, "lon": 106.5516, "adm1": "重庆市", "adm2": "重庆"},
+    "天津": {"name": "天津", "lat": 39.0842, "lon": 117.2009, "adm1": "天津市", "adm2": "天津"},
+    "香港": {"name": "香港", "lat": 22.3193, "lon": 114.1694, "adm1": "香港特别行政区", "adm2": "香港"},
+    "台北": {"name": "台北", "lat": 25.0330, "lon": 121.5654, "adm1": "台湾省", "adm2": "台北"},
+    "东京": {"name": "东京", "lat": 35.6762, "lon": 139.6503, "adm1": "东京都", "adm2": "东京"},
+    "伦敦": {"name": "伦敦", "lat": 51.5074, "lon": -0.1278, "adm1": "大伦敦", "adm2": "伦敦"},
+    "纽约": {"name": "纽约", "lat": 40.7128, "lon": -74.0060, "adm1": "纽约州", "adm2": "纽约"},
+    "巴黎": {"name": "巴黎", "lat": 48.8566, "lon": 2.3522, "adm1": "法兰西岛", "adm2": "巴黎"},
+}
+
+
+def _wmo(code, is_day=1):
+    txt, d_icon, n_icon = WMO_MAP.get(int(code or 0), ("多云", "101", "151"))
+    return txt, (d_icon if is_day else n_icon)
+
+
+def _wind_dir_name(deg):
+    if deg is None:
+        return "微风"
+    dirs = ["北风", "东北风", "东风", "东南风", "南风", "西南风", "西风", "西北风"]
+    return dirs[int((float(deg) + 22.5) // 45) % 8]
+
+
+def _wind_scale(kmh):
+    if kmh is None:
+        return "1级"
+    v = float(kmh)
+    if v < 1:
+        return "0级"
+    elif v <= 5:
+        return "1级"
+    elif v <= 11:
+        return "2级"
+    elif v <= 19:
+        return "3级"
+    elif v <= 28:
+        return "4级"
+    elif v <= 38:
+        return "5级"
+    elif v <= 49:
+        return "6级"
+    elif v <= 61:
+        return "7级"
+    elif v <= 74:
+        return "8级"
+    elif v <= 88:
+        return "9级"
+    else:
+        return "10级以上"
+
+
+def _aqi_category(aqi_val):
+    if aqi_val is None:
+        return "良"
+    v = float(aqi_val)
+    if v <= 20:
+        return "优"
+    elif v <= 40:
+        return "良"
+    elif v <= 60:
+        return "轻度污染"
+    elif v <= 80:
+        return "中度污染"
+    elif v <= 100:
+        return "重度污染"
+    else:
+        return "严重污染"
+
+
 class Weather:
     def __init__(self):
         self.data = None
@@ -582,11 +697,218 @@ class Weather:
                 LOG.warning('weather detail refresh failed (%s): %s', target, type(exc).__name__)
             return (slot['data'], slot['seq']) if slot['data'] else (_WEATHER_UNAVAILABLE, 0)
 
+    async def _fetch_open_meteo_detail(self, session, city=None):
+        import urllib.parse
+        city = (city or load_config()['city']).strip()
+        loc = OPEN_METEO_KNOWN.get(city) or OPEN_METEO_KNOWN.get(city.lower())
+        if not loc:
+            try:
+                url_geo = f"https://geocoding-api.open-meteo.com/v1/search?name={urllib.parse.quote(city)}&count=1&language=zh&format=json"
+                async with session.get(url_geo, timeout=aiohttp.ClientTimeout(total=8)) as r:
+                    geo = await r.json()
+                    results = geo.get("results")
+                    if results:
+                        loc = {
+                            "name": results[0].get("name") or city,
+                            "lat": float(results[0]["latitude"]),
+                            "lon": float(results[0]["longitude"]),
+                            "adm1": results[0].get("admin1", ""),
+                            "adm2": results[0].get("admin2", "")
+                        }
+            except Exception as e:
+                LOG.warning("open-meteo geocoding failed for %s: %s", city, e)
+        if not loc:
+            loc = {"name": city, "lat": 39.9042, "lon": 116.4074, "adm1": "北京市", "adm2": "北京"}
+
+        lat, lon = loc["lat"], loc["lon"]
+        url_fc = f"https://api.open-meteo.com/v1/forecast?latitude={lat:.4f}&longitude={lon:.4f}&current=temperature_2m,relative_humidity_2m,apparent_temperature,is_day,precipitation,weather_code,surface_pressure,wind_speed_10m,wind_direction_10m&hourly=temperature_2m,weather_code,precipitation_probability,wind_speed_10m,wind_direction_10m&daily=weather_code,temperature_2m_max,temperature_2m_min,sunrise,sunset,uv_index_max,precipitation_sum&timezone=auto"
+        url_aq = f"https://air-quality-api.open-meteo.com/v1/air-quality?latitude={lat:.4f}&longitude={lon:.4f}&current=european_aqi,pm10,pm2_5,nitrogen_dioxide,sulphur_dioxide,ozone"
+
+        async with session.get(url_fc, timeout=aiohttp.ClientTimeout(total=10)) as r1:
+            if r1.status != 200:
+                raise ConnectionError(f"open-meteo HTTP {r1.status}")
+            fc = await r1.json()
+
+        aq_data = {}
+        with contextlib.suppress(Exception):
+            async with session.get(url_aq, timeout=aiohttp.ClientTimeout(total=10)) as r2:
+                if r2.status == 200:
+                    aq_data = await r2.json()
+
+        cur = fc.get("current", {})
+        d_raw = fc.get("daily", {})
+        h_raw = fc.get("hourly", {})
+        cur_code = cur.get("weather_code", 0)
+        cur_is_day = cur.get("is_day", 1)
+        c_txt, c_icon = _wmo(cur_code, cur_is_day)
+        c_temp = round(cur.get("temperature_2m", 0))
+        c_feels = round(cur.get("apparent_temperature", c_temp))
+        c_humidity = round(cur.get("relative_humidity_2m", 0))
+        c_wind_dir = _wind_dir_name(cur.get("wind_direction_10m"))
+        c_wind_scale = _wind_scale(cur.get("wind_speed_10m"))
+
+        daily7 = []
+        d_times = d_raw.get("time", [])
+        for i in range(min(7, len(d_times))):
+            d_code = d_raw.get("weather_code", [0]*7)[i]
+            t_d, i_d = _wmo(d_code, 1)
+            t_n, i_n = _wmo(d_code, 0)
+            daily7.append({
+                "date": d_times[i],
+                "max": str(round(d_raw.get("temperature_2m_max", [0]*7)[i])),
+                "min": str(round(d_raw.get("temperature_2m_min", [0]*7)[i])),
+                "text": t_d,
+                "icon": i_d,
+                "text_night": t_n,
+                "icon_night": i_n,
+                "sunrise": d_raw.get("sunrise", [""]*7)[i][-5:],
+                "sunset": d_raw.get("sunset", [""]*7)[i][-5:],
+                "moonrise": "",
+                "moonset": "",
+                "moon_phase": "",
+                "uv": str(round(d_raw.get("uv_index_max", [0]*7)[i])),
+                "humidity": str(c_humidity),
+                "vis": "10",
+                "precip": str(round(d_raw.get("precipitation_sum", [0]*7)[i], 1)),
+                "wind_dir": c_wind_dir,
+                "wind_scale": c_wind_scale,
+                "wind_dir_night": c_wind_dir,
+                "wind_scale_night": c_wind_scale,
+            })
+
+        hourly24 = []
+        h_times = h_raw.get("time", [])
+        cur_iso_hour = cur.get("time", "")[:13]
+        start_idx = 0
+        for idx, ht in enumerate(h_times):
+            if ht.startswith(cur_iso_hour):
+                start_idx = idx
+                break
+        for i in range(start_idx, min(start_idx + 24, len(h_times))):
+            h_code = h_raw.get("weather_code", [0]*len(h_times))[i]
+            htxt, hico = _wmo(h_code, 1)
+            hourly24.append({
+                "time": h_times[i][-5:],
+                "temp": str(round(h_raw.get("temperature_2m", [0]*len(h_times))[i])),
+                "icon": hico,
+                "text": htxt,
+                "pop": str(round(h_raw.get("precipitation_probability", [0]*len(h_times))[i] or 0)),
+                "wind_dir": _wind_dir_name(h_raw.get("wind_direction_10m", [0]*len(h_times))[i]),
+                "wind_scale": _wind_scale(h_raw.get("wind_speed_10m", [0]*len(h_times))[i]),
+            })
+
+        aq_cur = aq_data.get("current", {})
+        aqi_val = aq_cur.get("european_aqi")
+        cat = _aqi_category(aqi_val)
+        air_short = {"aqi": str(round(aqi_val)) if aqi_val is not None else "--", "category": cat}
+
+        air_detail = {
+            "aqi": air_short["aqi"],
+            "category": cat,
+            "primary": "PM2.5",
+            "effect": "",
+            "advice": "",
+            "pollutants": [
+                {"code": "pm2p5", "name": "PM2.5", "value": str(round(aq_cur.get("pm2_5", 0), 1)), "unit": "μg/m³"},
+                {"code": "pm10", "name": "PM10", "value": str(round(aq_cur.get("pm10", 0), 1)), "unit": "μg/m³"},
+                {"code": "no2", "name": "NO₂", "value": str(round(aq_cur.get("nitrogen_dioxide", 0), 1)), "unit": "μg/m³"},
+                {"code": "o3", "name": "O₃", "value": str(round(aq_cur.get("ozone", 0), 1)), "unit": "μg/m³"},
+                {"code": "so2", "name": "SO₂", "value": str(round(aq_cur.get("sulphur_dioxide", 0), 1)), "unit": "μg/m³"},
+            ]
+        }
+
+        indices = [
+            {"type": "3", "name": "穿衣", "category": "较冷" if c_temp < 12 else "舒适", "text": "建议着厚外套加毛衣。" if c_temp < 12 else "建议着单衣加薄外套。"},
+            {"type": "9", "name": "感冒", "category": "较易发" if c_temp < 10 else "少发", "text": "昼夜温差大，外出注意保暖。"},
+            {"type": "1", "name": "运动", "category": "适宜" if c_wind_scale in ("0级","1级","2级","3级") else "较不宜", "text": "天气适宜，适合进行户外活动。"},
+            {"type": "5", "name": "紫外线", "category": "最弱", "text": "紫外线较弱，无需特殊防护。"},
+        ]
+
+        ts = int(time.time())
+        base = {
+            "ok": True,
+            "city": loc["name"],
+            "updated": ts,
+            "now": {
+                "temp": str(c_temp),
+                "feels": str(c_feels),
+                "text": c_txt,
+                "icon": c_icon,
+                "humidity": str(c_humidity),
+                "wind_dir": c_wind_dir,
+                "wind_scale": c_wind_scale,
+            },
+            "daily": [
+                {
+                    "date": d["date"], "max": d["max"], "min": d["min"],
+                    "text": d["text"], "icon": d["icon"],
+                    "text_night": d["text_night"], "icon_night": d["icon_night"],
+                    "sunrise": d["sunrise"], "sunset": d["sunset"],
+                } for d in daily7[:3]
+            ],
+            "air": air_short,
+        }
+
+        det = {
+            "ok": True,
+            "city": loc["name"],
+            "cities": weather_cities(),
+            "adm1": loc.get("adm1", ""),
+            "adm2": loc.get("adm2", ""),
+            "lat": f"{lat:.2f}",
+            "lon": f"{lon:.2f}",
+            "updated": ts,
+            "obs_hm": cur.get("time", "")[-5:],
+            "now": {
+                "temp": str(c_temp),
+                "feels": str(c_feels),
+                "text": c_txt,
+                "icon": c_icon,
+                "humidity": str(c_humidity),
+                "wind_dir": c_wind_dir,
+                "wind_scale": c_wind_scale,
+                "wind_speed": str(round(cur.get("wind_speed_10m", 0))),
+                "pressure": str(round(cur.get("surface_pressure", 1013))),
+                "vis": "10",
+                "precip": str(round(cur.get("precipitation", 0), 1)),
+                "cloud": "",
+                "dew": "",
+            },
+            "hourly": hourly24,
+            "daily": daily7,
+            "air": air_detail,
+            "indices": indices,
+            "alerts": [],
+        }
+        return base, det
+
+    async def _fetch_open_meteo(self, session, city=None):
+        base, _ = await self._fetch_open_meteo_detail(session, city)
+        return base
+
     async def _fetch(self, session):
+        city = load_config()['city']
         host, key = weather_credentials()
         if not host or not key:
-            raise RuntimeError('weather not configured')
-        city = load_config()['city']
+            return await self._fetch_open_meteo(session, city)
+        try:
+            return await self._fetch_qw(session, host, key, city)
+        except Exception as exc:
+            LOG.warning('QWeather fetch failed (%s), fallback to Open-Meteo: %s', city, exc)
+            return await self._fetch_open_meteo(session, city)
+
+    async def _fetch_detail(self, session, city=None):
+        city = (city or load_config()['city']).strip()
+        host, key = weather_credentials()
+        if not host or not key:
+            return await self._fetch_open_meteo_detail(session, city)
+        try:
+            return await self._fetch_qw_detail(session, host, key, city)
+        except Exception as exc:
+            LOG.warning('QWeather detail failed (%s), fallback to Open-Meteo: %s', city, exc)
+            return await self._fetch_open_meteo_detail(session, city)
+
+    async def _fetch_qw(self, session, host, key, city):
         loc = await self._ensure_loc(session, host, key, city)
         now_r, d3_r = await asyncio.gather(
             self._get(session, host, key, '/v7/weather/now', {'location': loc['id']}),
@@ -621,10 +943,7 @@ class Weather:
                         'wind_dir': s(n.get('windDir')), 'wind_scale': s(n.get('windScale'), 6)},
                 'daily': daily, 'air': air}
 
-    async def _fetch_detail(self, session, city=None):
-        host, key = weather_credentials()
-        if not host or not key:
-            raise RuntimeError('weather not configured')
+    async def _fetch_qw_detail(self, session, host, key, city):
         city = (city or load_config()['city']).strip()
         loc = await self._ensure_loc(session, host, key, city)
         s = lambda v, lim=16: str(v)[:lim] if v is not None else ''
