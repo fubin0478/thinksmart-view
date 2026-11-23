@@ -1,0 +1,230 @@
+#!/usr/bin/python3 -B
+"""ThinkSmart xHCI USB Host Controller Self-Healing Watchdog.
+
+Qualcomm MSM8953 dwc3/xhci-hcd can enter 'HC died' if a USB hub or UVC camera
+is hot-unplugged while an isochronous/bulk endpoint is active, leaving the port
+unresponsive on subsequent plug-ins until the USB role is cycled device->host.
+Blocks on /dev/kmsg with select() (0% idle CPU) plus a 30s root-hub sanity check.
+"""
+import errno
+import fcntl
+import os
+import select
+import signal
+import subprocess
+import sys
+import time
+
+ROLE_PATH = os.environ.get('USB_ROLE_PATH', '/sys/class/usb_role/7000000.usb-role-switch/role')
+USB1_PATH = os.environ.get('USB_ROOTHUB_PATH', '/sys/bus/usb/devices/usb1')
+USB_MODE_BIN = os.environ.get('USB_MODE_BIN', '/usr/local/bin/usb-mode')
+MNT_DIR = os.environ.get('USB_MNT_DIR', '/mnt/usb')
+LOCK_PATH = os.environ.get('USB_LOCK_PATH', '/run/lock/thinksmart-usb.lock')
+COOLDOWN_SEC = 12.0
+
+DEAD_PATTERNS = (
+    'HC died',
+    'xHCI host controller not responding, assume dead',
+    'USB host controller halted',
+)
+
+
+def is_dead_kmsg(line: str) -> bool:
+    if 'xhci' not in line.lower() and 'usb' not in line.lower():
+        return False
+    return any(p in line for p in DEAD_PATTERNS)
+
+
+def read_role(role_path: str = ROLE_PATH) -> str:
+    try:
+        with open(role_path, 'r', encoding='utf-8') as f:
+            return f.read().strip()
+    except OSError:
+        return ''
+
+
+def unmount_stale_usb(mnt_dir: str = MNT_DIR, lock_path: str = LOCK_PATH) -> None:
+    try:
+        os.makedirs(os.path.dirname(lock_path), exist_ok=True)
+        lfd = os.open(lock_path, os.O_CREAT | os.O_RDWR | getattr(os, 'O_NOFOLLOW', 0), 0o600)
+        try:
+            locked = False
+            deadline = time.monotonic() + 2.0
+            while True:
+                try:
+                    fcntl.flock(lfd, fcntl.LOCK_EX | fcntl.LOCK_NB)
+                    locked = True
+                    break
+                except BlockingIOError:
+                    if time.monotonic() >= deadline:
+                        break
+                    time.sleep(0.1)
+            if not locked:
+                print('[usb-watchdog] unmount check skipped: lock busy', flush=True)
+                return
+            r = subprocess.run(
+                ['findmnt', '-krn', '-M', mnt_dir, '-o', 'SOURCE'],
+                capture_output=True, text=True, timeout=3, close_fds=True,
+            )
+            if r.returncode == 0 and r.stdout.strip():
+                subprocess.run(['umount', '-l', mnt_dir], capture_output=True, timeout=4, close_fds=True)
+        finally:
+            os.close(lfd)
+    except Exception as e:
+        print(f'[usb-watchdog] unmount check warning: {e}', flush=True)
+
+
+class UsbWatchdog:
+    def __init__(self, role_path=ROLE_PATH, usb1_path=USB1_PATH, usb_mode_bin=USB_MODE_BIN,
+                 mnt_dir=MNT_DIR, lock_path=LOCK_PATH, cooldown_sec=COOLDOWN_SEC, settle_sec=0.8, role_gap_sec=1.0):
+        self.role_path = role_path
+        self.usb1_path = usb1_path
+        self.usb_mode_bin = usb_mode_bin
+        self.mnt_dir = mnt_dir
+        self.lock_path = lock_path
+        self.state_path = f'{self.lock_path}.recovering'
+        self.cooldown_sec = cooldown_sec
+        self.settle_sec = settle_sec
+        self.role_gap_sec = role_gap_sec
+        self.last_recover_mono = -999.0
+        self._host_restore_pending = os.path.exists(self.state_path)
+        self._dead_kmsg_pending = ''
+
+    def needs_roothub_recovery(self) -> bool:
+        if self._host_restore_pending:
+            return True
+        if read_role(self.role_path) != 'host':
+            return False
+        return bool(self._dead_kmsg_pending) or not os.path.exists(self.usb1_path)
+
+    def recover(self, reason: str) -> bool:
+        now = time.monotonic()
+        if now - self.last_recover_mono < self.cooldown_sec:
+            if self._host_restore_pending or read_role(self.role_path) == 'host':
+                self._dead_kmsg_pending = reason or 'deferred kmsg recovery'
+            return False
+        if not self._host_restore_pending and read_role(self.role_path) != 'host':
+            self._dead_kmsg_pending = ''
+            return False
+        if self.settle_sec > 0:
+            time.sleep(self.settle_sec)
+            if not self._host_restore_pending and read_role(self.role_path) != 'host':
+                self._dead_kmsg_pending = ''
+                return False
+        self._dead_kmsg_pending = ''
+        self.last_recover_mono = time.monotonic()
+        print(f'[usb-watchdog] Recovering xHCI host controller ({reason})...', flush=True)
+        unmount_stale_usb(self.mnt_dir, self.lock_path)
+        rc1 = 1
+        rc2 = 1
+        try:
+            try:
+                fd_s = os.open(self.state_path, os.O_CREAT | os.O_WRONLY | getattr(os, 'O_NOFOLLOW', 0), 0o600)
+                os.close(fd_s)
+            except OSError:
+                pass
+            r1 = subprocess.run([self.usb_mode_bin, 'device'], capture_output=True, text=True, timeout=10)
+            rc1 = r1.returncode
+            if self.role_gap_sec > 0:
+                time.sleep(self.role_gap_sec)
+        except Exception as e:
+            print(f'[usb-watchdog] device role step warning: {e}', flush=True)
+        finally:
+            try:
+                r2 = subprocess.run([self.usb_mode_bin, 'host'], capture_output=True, text=True, timeout=10)
+                rc2 = r2.returncode
+                if rc2 != 0:
+                    time.sleep(0.3)
+                    r2_retry = subprocess.run([self.usb_mode_bin, 'host'], capture_output=True, text=True, timeout=10)
+                    rc2 = r2_retry.returncode
+            except Exception as e:
+                print(f'[usb-watchdog] host role restore error: {e}', flush=True)
+            self._host_restore_pending = (rc2 != 0 or read_role(self.role_path) != 'host')
+            if not self._host_restore_pending:
+                try:
+                    os.unlink(self.state_path)
+                except OSError:
+                    pass
+                if rc1 != 0 and read_role(self.role_path) == 'host':
+                    self._dead_kmsg_pending = reason or 'incomplete device->host cycle'
+            self.last_recover_mono = time.monotonic()
+        ok = (rc1 == 0 and rc2 == 0)
+        print(f'[usb-watchdog] Recovery finished ok={ok}', flush=True)
+        return ok
+
+
+def run_forever() -> None:
+    stop_flag = [False]
+    wake_r, wake_w = os.pipe()
+    os.set_blocking(wake_r, False)
+    os.set_blocking(wake_w, False)
+
+    def _on_sig(*_args):
+        stop_flag[0] = True
+        try:
+            os.write(wake_w, b'\x01')
+        except OSError:
+            pass
+
+    for _sig in (signal.SIGTERM, signal.SIGINT):
+        signal.signal(_sig, _on_sig)
+    wd = UsbWatchdog()
+    if wd.needs_roothub_recovery():
+        wd.recover('startup missing usb1 root hub')
+
+    fd = os.open('/dev/kmsg', os.O_RDONLY | os.O_NONBLOCK)
+    try:
+        os.lseek(fd, 0, os.SEEK_END)
+        print('[usb-watchdog] Monitoring /dev/kmsg for xHCI controller lockups', flush=True)
+        next_check = time.monotonic() + 30.0
+        while not stop_flag[0]:
+            now_m = time.monotonic()
+            wait_s = max(0.0, next_check - now_m)
+            if wd._dead_kmsg_pending or wd._host_restore_pending:
+                wait_s = min(wait_s, max(0.5, wd.cooldown_sec - (now_m - wd.last_recover_mono)))
+            try:
+                rd, _, _ = select.select([fd, wake_r], [], [], wait_s)
+            except InterruptedError:
+                continue
+            if wake_r in rd or stop_flag[0]:
+                break
+            if not rd:
+                next_check = time.monotonic() + 30.0
+                if wd.needs_roothub_recovery():
+                    wd.recover(wd._dead_kmsg_pending or 'periodic check: usb1 root hub missing')
+                    os.lseek(fd, 0, os.SEEK_END)
+                continue
+            triggered = ''
+            while True:
+                try:
+                    raw = os.read(fd, 8192)
+                    if not raw:
+                        break
+                    msg = raw.decode('utf-8', errors='replace')
+                    if is_dead_kmsg(msg):
+                        triggered = msg.split(';', 1)[-1].strip()
+                except OSError as e:
+                    if e.errno == errno.EPIPE:
+                        continue
+                    if e.errno in (errno.EAGAIN, errno.EWOULDBLOCK):
+                        break
+                    raise
+            if triggered:
+                wd.recover(triggered)
+                next_check = time.monotonic() + 30.0
+                os.lseek(fd, 0, os.SEEK_END)
+            elif time.monotonic() >= next_check:
+                next_check = time.monotonic() + 30.0
+                if wd.needs_roothub_recovery():
+                    wd.recover(wd._dead_kmsg_pending or 'periodic check: usb1 root hub missing')
+                    os.lseek(fd, 0, os.SEEK_END)
+    finally:
+        for _d in (fd, wake_r, wake_w):
+            try:
+                os.close(_d)
+            except OSError:
+                pass
+
+
+if __name__ == '__main__':
+    run_forever()

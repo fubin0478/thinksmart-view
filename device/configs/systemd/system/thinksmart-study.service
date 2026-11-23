@@ -1,0 +1,30 @@
+[Unit]
+Description=ThinkSmart View study companion (posture / attention reminders during study hours)
+After=network-online.target user@1000.service thinksmart-intercom.service
+Wants=network-online.target
+
+[Service]
+User=ubuntu
+Group=ubuntu
+ExecStart=/opt/thinksmart-addons/venv/bin/python /usr/local/bin/thinksmart-study.py
+Environment=PYTHONUNBUFFERED=1 PYTHONDONTWRITEBYTECODE=1 XDG_RUNTIME_DIR=/run/user/1000 PULSE_SERVER=unix:/run/user/1000/pulse/native
+StateDirectory=thinksmart-study
+StateDirectoryMode=0700
+Restart=always
+RestartSec=10
+NoNewPrivileges=yes
+ProtectSystem=strict
+ProtectHome=read-only
+PrivateTmp=yes
+PrivateDevices=yes
+ProtectKernelTunables=yes
+ProtectKernelModules=yes
+ProtectControlGroups=yes
+RestrictAddressFamilies=AF_UNIX AF_INET AF_INET6 AF_NETLINK
+MemoryHigh=144M
+MemoryMax=192M
+TasksMax=48
+
+TimeoutStopSec=10
+[Install]
+WantedBy=multi-user.target

@@ -1,0 +1,35 @@
+[
+  {
+    "id": 1,
+    "name": "主力节点",
+    "country": "us",
+    "traffic_limit": "1TB",
+    "traffic_reset_day": 1,
+    "traffic_limit_override": true,
+    "price": "$20.00",
+    "cycle": "Year",
+    "expires": "2027-01-01T00:00:00.000Z"
+  },
+  {
+    "id": 2,
+    "name": "亚太节点",
+    "country": "sg",
+    "traffic_limit": "500GB",
+    "traffic_reset_day": 15,
+    "traffic_limit_override": true,
+    "price": "$30.00",
+    "cycle": "Year",
+    "expires": "2027-06-01T00:00:00.000Z"
+  },
+  {
+    "id": 3,
+    "name": "欧洲节点",
+    "country": "de",
+    "traffic_limit": "2TB",
+    "traffic_reset_day": 1,
+    "traffic_limit_override": true,
+    "price": "$25.00",
+    "cycle": "Year",
+    "expires": "2027-12-01T00:00:00.000Z"
+  }
+]

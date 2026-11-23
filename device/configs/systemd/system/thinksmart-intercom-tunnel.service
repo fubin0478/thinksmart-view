@@ -1,0 +1,21 @@
+[Unit]
+Description=ThinkSmart View Intercom Reverse SSH Tunnel
+ConditionFileNotEmpty=/etc/thinksmart-intercom/id_ed25519
+After=network-online.target mihomo.service thinksmart-intercom.service
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=root
+ExecStart=/usr/local/bin/thinksmart-intercom-tunnel.sh
+Restart=always
+RestartSec=5
+NoNewPrivileges=yes
+PrivateTmp=yes
+MemoryHigh=32M
+MemoryMax=64M
+TasksMax=32
+
+TimeoutStopSec=10
+[Install]
+WantedBy=multi-user.target

@@ -1,0 +1,33 @@
+# Python & caches
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+.pytest_cache/
+
+# macOS / OS
+.DS_Store
+Thumbs.db
+
+# Model weights, audio blobs & runtime secrets (never commit!)
+models/
+*.gguf
+*.bin
+*.img
+*.img.xz
+*.safetensors
+*.wav
+*.pcm
+*.mp3
+*.flac
+*.key
+*secret*
+!mac-companion/study-vision/vision_bridge.py
+servers.json
+traffic.json
+config.json
+messages.json
+asr_context.txt
+homophones.json
+*.log
+*.bak*

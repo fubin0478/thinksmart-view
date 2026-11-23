@@ -1,0 +1,20 @@
+[Unit]
+Description=VCNL4200 Proximity Sensor Daemon (standalone)
+After=network.target graphical-session-pre.target
+ConditionUser=ubuntu
+
+[Service]
+Type=simple
+Environment=PYTHONUNBUFFERED=1 PYTHONDONTWRITEBYTECODE=1
+ExecStart=/usr/bin/python3 -B /usr/local/bin/vcnl4200-proximity-daemon.py
+Restart=always
+RestartSec=3
+TimeoutStopSec=5
+StandardOutput=journal
+StandardError=journal
+MemoryHigh=48M
+MemoryMax=64M
+TasksMax=16
+
+[Install]
+WantedBy=default.target

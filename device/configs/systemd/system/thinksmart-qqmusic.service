@@ -1,0 +1,27 @@
+[Unit]
+Description=ThinkSmart Standalone QQ Music Touchscreen & Voice Service (Port 8091)
+After=network-online.target user@1000.service
+Wants=network-online.target
+
+[Service]
+User=ubuntu
+Group=ubuntu
+Environment=HOME=/home/ubuntu XDG_RUNTIME_DIR=/run/user/1000 PULSE_SERVER=unix:/run/user/1000/pulse/native PYTHONUNBUFFERED=1 PYTHONDONTWRITEBYTECODE=1
+NoNewPrivileges=yes
+PrivateDevices=yes
+PrivateTmp=yes
+ProtectSystem=full
+ProtectKernelModules=yes
+ProtectControlGroups=yes
+RestrictAddressFamilies=AF_UNIX AF_INET AF_INET6 AF_NETLINK
+MemoryHigh=180M
+MemoryMax=256M
+TasksMax=64
+ExecStartPre=/bin/sh -c 'for i in $(seq 1 20); do [ -S /run/user/1000/pulse/native ] && wpctl get-volume @DEFAULT_AUDIO_SINK@ >/dev/null 2>&1 && exit 0; sleep 0.5; done; exit 0'
+ExecStart=/opt/thinksmart-addons/venv/bin/python /usr/local/bin/thinksmart-qqmusic.py
+Restart=always
+RestartSec=3
+
+TimeoutStopSec=10
+[Install]
+WantedBy=multi-user.target

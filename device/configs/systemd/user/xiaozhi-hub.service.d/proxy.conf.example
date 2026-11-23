@@ -1,0 +1,7 @@
+[Service]
+Environment="HTTP_PROXY=http://127.0.0.1:1080"
+Environment="HTTPS_PROXY=http://127.0.0.1:1080"
+Environment="http_proxy=http://127.0.0.1:1080"
+Environment="https_proxy=http://127.0.0.1:1080"
+Environment="NO_PROXY=127.0.0.1,localhost,::1,.local,192.168.0.0/16,10.0.0.0/8,172.16.0.0/12,ddns.example.com,.example.com"
+Environment="no_proxy=127.0.0.1,localhost,::1,.local,192.168.0.0/16,10.0.0.0/8,172.16.0.0/12,ddns.example.com,.example.com"

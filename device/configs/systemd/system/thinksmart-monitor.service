@@ -1,0 +1,28 @@
+[Unit]
+Description=ThinkSmart Nezha read-only touchscreen monitor
+After=network-online.target mihomo.service
+Wants=network-online.target
+
+[Service]
+User=ubuntu
+Environment=PYTHONUNBUFFERED=1 PYTHONDONTWRITEBYTECODE=1 NEZHA_HOST=nezha.example.com
+ExecStart=/opt/thinksmart-addons/venv/bin/python /usr/local/bin/thinksmart-monitor.py
+Restart=always
+RestartSec=5
+NoNewPrivileges=yes
+PrivateTmp=yes
+PrivateDevices=yes
+ProtectSystem=strict
+ProtectHome=read-only
+ProtectKernelModules=yes
+ProtectControlGroups=yes
+RestrictAddressFamilies=AF_UNIX AF_INET AF_INET6 AF_NETLINK
+StateDirectory=thinksmart-monitor
+StateDirectoryMode=0700
+MemoryHigh=64M
+MemoryMax=96M
+TasksMax=24
+
+TimeoutStopSec=10
+[Install]
+WantedBy=multi-user.target

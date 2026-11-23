@@ -1,0 +1,21 @@
+{
+  "rule_id": "1",
+  "server_id": 1,
+  "reset_day": 1,
+  "limit_bytes": 1000000000000,
+  "complete_from": "2026-12-01T00:00:00+08:00",
+  "local_rules": {
+    "2": {
+      "reset_day": 15,
+      "limit_bytes": 500000000000,
+      "mode": "both",
+      "complete_from": "2026-11-15T00:00:00+08:00"
+    },
+    "3": {
+      "reset_day": 1,
+      "limit_bytes": 2000000000000,
+      "mode": "max",
+      "complete_from": "2026-12-01T00:00:00+08:00"
+    }
+  }
+}

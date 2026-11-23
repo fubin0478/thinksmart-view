@@ -1,0 +1,2204 @@
+<!doctype html>
+<html lang="zh-CN"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no"><meta name="color-scheme" content="dark"><title>服务器 · ThinkSmart</title><script>try{if(localStorage.getItem('ts.theme')==='light')document.documentElement.setAttribute('data-theme','light')}catch(e){}</script>
+<style>
+:root{
+  --bg:#0a101c;--panel:#121a2b;--inset:#0d1524;--ctl:#1d2840;--ctl-a:#26334f;--line:#232e45;
+  --text:#f2f5fb;--soft:#b4bfd4;--muted:#8a96ad;
+  --blue:#5ab8ff;--cyan:#63b3ed;--teal:#3ddc97;--amber:#f5c04a;
+  --ok:#3ddc97;--warn:#f5c04a;--bad:#ff6b6b;
+  --prem-bg:#2f2814;--prem-fg:#f5d27a;--tag-bg:#1a253b;--tag-fg:#9eb0cc;
+  --ok-bg:#14291f;--ok-fg:#8ff0c4;--warn-bg:#332814;--warn-fg:#f5d27a;--bad-bg:#3a1d20;--bad-fg:#ffb3b3;
+  --shade:rgba(3,6,12,.76)
+}
+html[data-theme="light"]{
+  color-scheme:light;
+  --bg:#cfc5b7;--panel:#e3dcd0;--inset:#d8d0c2;--ctl:#d4cbbd;--ctl-a:#c6bdb0;--line:#c4bbb0;
+  --text:#18191b;--soft:#424449;--muted:#5e6167;
+  --blue:#285498;--cyan:#1b6b80;--teal:#0f6d63;--amber:#b87314;
+  --ok:#216e37;--warn:#b87314;--bad:#bf2a2a;
+  --prem-bg:#eddab8;--prem-fg:#84510a;--tag-bg:#d6cebf;--tag-fg:#484b52;
+  --ok-bg:#cde2d1;--ok-fg:#1f6834;--warn-bg:#eddcb2;--warn-fg:#7a5200;--bad-bg:#efc9c9;--bad-fg:#a82626;
+  --shade:rgba(24,22,19,.48)
+}
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+html,body{margin:0;width:100%;height:100%;overflow:hidden}
+body{
+  font-family:"Noto Sans CJK SC","Noto Sans SC","PingFang SC",-apple-system,BlinkMacSystemFont,sans-serif;
+  color:var(--text);background:var(--bg);font-variant-numeric:tabular-nums;
+  -webkit-user-select:none;user-select:none;-webkit-font-smoothing:antialiased
+}
+html[data-theme="light"] body{
+  background:linear-gradient(150deg,#c6d2ce 0%,var(--bg) 40%,#d6cbbd 100%)
+}
+button{font:inherit;color:inherit;border:none;background:none;padding:0;cursor:pointer;touch-action:manipulation}
+button:focus-visible,[tabindex]:focus-visible{outline:3px solid var(--teal);outline-offset:-2px}
+.ambient{display:none}
+.screen{position:relative;height:100%;padding:13px 18px 13px;display:flex;flex-direction:column;gap:12px}
+
+/* ---- Top header strip ---- */
+.network-strip{
+  height:66px;flex-shrink:0;display:flex;align-items:center;padding:0 13px 0 7px;gap:6px;
+  border-radius:22px;background:var(--panel);overflow:hidden
+}
+html[data-theme="light"] .network-strip,
+html[data-theme="light"] .card{box-shadow:0 0 0 1px var(--line)}
+.home,header.network-strip #tsBrightness.monitor-brightness{
+  display:flex;align-items:center;justify-content:center;gap:5px;
+  height:50px;padding:0 13px;border:none;border-radius:16px;
+  background:var(--ctl);color:var(--text);text-decoration:none;
+  font-size:19px;font-weight:700;flex-shrink:0;box-shadow:none;
+  transition:transform .12s cubic-bezier(.22,1,.36,1),background-color .12s ease
+}
+.home svg,header.network-strip #tsBrightness.monitor-brightness svg{width:20px;height:20px;color:var(--teal);stroke-width:2;flex-shrink:0}
+html:not([data-theme="light"]) .home svg,html:not([data-theme="light"]) header.network-strip #tsBrightness.monitor-brightness svg{color:var(--blue)}
+.home:active,header.network-strip #tsBrightness.monitor-brightness:active{background:var(--ctl-a);transform:scale(.96)}
+
+.totals{display:flex;align-items:center;gap:8px;padding:0 2px;flex-shrink:0}
+.aggregate{display:flex;gap:3px;align-items:baseline;white-space:nowrap}
+.aggregate>span:first-child{font-size:18px;font-weight:700}
+.aggregate strong{display:inline-block;font-size:22.5px;font-weight:700;min-width:98px}
+.aggregate .unit{font-size:13px;font-weight:500;color:var(--muted);margin-left:2px}
+.up{color:var(--blue)}
+.down{color:var(--teal)}
+.split{height:26px;width:1px;background:var(--line);flex-shrink:0}
+
+/* US-Optimized Three-carrier live latency pill (联通 -> 电信 -> 移动) */
+.carriers{
+  height:46px;padding:0 9px;border-radius:15px;background:var(--ctl);
+  display:flex;align-items:center;gap:7px;margin-left:auto;flex-shrink:0;min-width:0;
+  transition:transform .12s cubic-bezier(.22,1,.36,1),background-color .12s ease
+}
+.carriers:active{background:var(--ctl-a);transform:scale(.97)}
+.c-src{font-size:12px;font-weight:700;padding:2px 6px;border-radius:7px;background:var(--prem-bg);color:var(--prem-fg);flex-shrink:0}
+.c-item{display:flex;align-items:center;gap:3.5px;font-size:14px;color:var(--soft);white-space:nowrap}
+.c-item b{font-size:16px;font-weight:700;color:var(--text)}
+.c-dot{width:8px;height:8px;border-radius:50%;background:var(--ok);flex-shrink:0}
+.c-dot.warn{background:var(--warn)}
+.c-dot.bad{background:var(--bad)}
+.c-chev{width:14px;height:14px;color:var(--muted);margin-left:-3px;flex-shrink:0}
+
+/* Pin / Keep-awake toggle + Health status pill + Clock */
+.pin-btn{
+  height:44px;padding:0 9px;border-radius:13px;background:var(--ctl);color:var(--soft);
+  font-size:14px;font-weight:700;display:flex;align-items:center;gap:4px;flex-shrink:0;
+  transition:transform .12s ease,background-color .12s ease,color .12s ease
+}
+.pin-btn svg{width:14.5px;height:14.5px;flex-shrink:0}
+.pin-btn.on{background:var(--ok-bg);color:var(--ok-fg)}
+.pin-btn:active{transform:scale(.95)}
+
+.connection{
+  height:44px;padding:0 10px;border-radius:14px;font-size:15.5px;font-weight:700;
+  color:var(--ok-fg);background:var(--ok-bg);display:flex;align-items:center;gap:5px;white-space:nowrap;flex-shrink:0;
+  max-width:172px;overflow:hidden;
+  transition:transform .12s ease,background-color .12s ease
+}
+.connection span{overflow:hidden;text-overflow:ellipsis}
+.connection i{width:8px;height:8px;border-radius:50%;display:block;background:currentColor;flex-shrink:0}
+.connection.stale{color:var(--warn-fg);background:var(--warn-bg)}
+.connection.warn{color:var(--warn-fg);background:var(--warn-bg)}
+.connection.bad{color:var(--bad-fg);background:var(--bad-bg)}
+.connection.clickable:active{transform:scale(.96)}
+.hdr-clock{flex-shrink:0;font-size:27px;font-weight:700;color:var(--text);margin-left:1px}
+
+/* ---- 4x2 Server Grid ---- */
+.grid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));grid-template-rows:repeat(2,minmax(0,1fr));gap:12px 14px;flex:1;min-height:0}
+.card{
+  min-width:0;min-height:0;border:2px solid transparent;border-radius:24px;
+  background:var(--panel);display:flex;flex-direction:column;padding:12px 14px 10px;
+  overflow:hidden;contain:layout paint;position:relative;cursor:pointer;
+  transition:transform .12s cubic-bezier(.22,1,.36,1),border-color .2s ease
+}
+.card:active{transform:scale(.984)}
+.card.offline{border-color:var(--bad);box-shadow:none!important}
+.head{display:flex;align-items:center;gap:6px;height:28px;flex-shrink:0}
+.flag{width:26px;height:18px;display:block;border-radius:4px;overflow:hidden;flex-shrink:0;box-shadow:0 0 0 1px rgba(0,0,0,.08)}
+.flag svg{display:block;width:100%;height:100%}
+.name{margin:0;min-width:0;font-size:20px;font-weight:700;line-height:26px;white-space:nowrap;text-overflow:ellipsis;overflow:hidden}
+.lamp{margin-left:auto;display:flex;align-items:center;gap:4px;flex-shrink:0;font-size:13.8px;font-weight:700;color:var(--ok)}
+.lamp i{width:8px;height:8px;border-radius:50%;display:block;background:currentColor}
+.lamp.warn{color:var(--warn)}
+.lamp.bad,.card.offline .lamp{color:var(--bad)}
+.card.unknown .lamp{color:var(--muted)}
+
+.billing{display:flex;align-items:center;justify-content:space-between;gap:6px;margin:3px 0 6px;height:24px;flex-shrink:0;white-space:nowrap}
+.expire{font-size:16.5px;font-weight:700;color:var(--text)}
+.expire.due{color:var(--bad-fg);background:var(--bad-bg);padding:1px 10px;border-radius:999px;font-size:15px}
+.plan-tag{font-size:12.5px;font-weight:600;padding:2px 8px;border-radius:8px;background:var(--tag-bg);color:var(--tag-fg);max-width:164px;overflow:hidden;text-overflow:ellipsis}
+.plan-tag.prem{background:var(--prem-bg);color:var(--prem-fg)}
+.plan-tag:empty{display:none}
+
+.metrics{display:flex;flex-direction:column;gap:7px;flex-shrink:0}
+.metricline{display:flex;align-items:baseline;justify-content:space-between;gap:6px}
+.label{font-size:15px;font-weight:500;color:var(--soft);flex-shrink:0}
+.amount{color:var(--muted);font-size:12.8px;font-weight:500;margin-left:auto;margin-right:6px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.amount.swp-hi{color:var(--warn)}
+.metricline strong{font-size:22.5px;line-height:1.08;font-weight:700;flex-shrink:0}
+.track{height:6.5px;overflow:hidden;border-radius:4px;background:var(--line);margin-top:4px;contain:strict}
+.track span{display:block;width:100%!important;height:100%;background:var(--blue);border-radius:4px;transform-origin:left center;transform:scaleX(0);backface-visibility:hidden;transition:transform .38s cubic-bezier(.22,1,.36,1),background-color .28s}
+.metric[data-kind=mem] .track span{background:var(--cyan)}
+.metric[data-kind=disk] .track span{background:var(--teal)}
+
+/* Traffic quota block (US-Optimized card) */
+.quota{margin:5px 0 3px;flex-shrink:0}
+.quota[hidden]{display:none}
+.quotaline{display:flex;justify-content:space-between;align-items:baseline;gap:4px;font-size:13.5px;color:var(--soft);white-space:nowrap}
+.quotaline strong{font-size:16.5px;color:var(--text);font-weight:700}
+.quotanote{font-size:12.5px;line-height:16px;color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.quotanote:empty{display:none}
+.quota-track{height:5px;border-radius:3px;background:var(--line);margin-top:3px;overflow:hidden;contain:strict}
+.quota-track span{display:block;width:100%!important;height:100%;background:var(--teal);transform-origin:left center;transform:scaleX(0);backface-visibility:hidden;transition:transform .38s cubic-bezier(.22,1,.36,1),background-color .28s}
+.quota-track[hidden]{display:none}
+.card.has-quota{padding-top:10px;padding-bottom:8px}
+.card.has-quota .billing{margin:2px 0 4px;height:22px}
+.card.has-quota .metrics{gap:4px}
+.card.has-quota .track{height:5.5px;margin-top:3px}
+.card.has-quota .network{padding-top:5px}
+
+.network{border-top:1px solid var(--line);padding-top:7px;margin-top:auto;display:grid;grid-template-columns:1fr 1fr;gap:8px;flex-shrink:0}
+.netstat{min-width:0}
+.netlabel{font-size:13.5px;font-weight:500;color:var(--soft);display:flex;align-items:center;gap:4px;margin-bottom:1px}
+.arrow{font-size:14px;line-height:1;font-weight:700}
+.netvalue{font-size:21.5px;line-height:25px;font-weight:700;white-space:nowrap}
+.unit{font-size:13px;font-weight:500;color:var(--muted);margin-left:3px}
+.transfer{font-size:12.5px;margin-top:1px;color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.card.unknown .metrics,.card.offline .metrics{opacity:.48}
+.card.unknown .network,.card.offline .network{opacity:.5}
+
+/* ---- Modals (Server Detail, US-Optimized 3-Carrier Latency, Fleet & Billing) ---- */
+.shade{
+  position:fixed;inset:0;z-index:60;background:var(--shade);
+  display:flex;align-items:center;justify-content:center;padding:16px 20px;
+  opacity:0;visibility:hidden;pointer-events:none;
+  transition:opacity .14s ease,visibility 0s linear .14s
+}
+.shade.open{opacity:1;visibility:visible;pointer-events:auto;transition:opacity .15s ease,visibility 0s}
+.modal{
+  width:1164px;max-width:100%;max-height:764px;border-radius:28px;background:var(--panel);
+  border:1px solid var(--line);padding:18px 24px 20px;display:flex;flex-direction:column;gap:12px;
+  box-shadow:0 10px 28px rgba(0,0,0,.32);transform:translateY(8px);
+  transition:transform .16s cubic-bezier(.22,1,.36,1);overflow:hidden;contain:layout paint
+}
+html[data-theme="light"] .modal{box-shadow:0 0 0 1px var(--line),0 10px 24px rgba(28,24,18,.18)}
+.shade.open .modal{transform:none}
+.m-head{display:flex;align-items:center;gap:11px;flex-shrink:0}
+.m-head .flag{width:36px;height:25px;border-radius:5px}
+.m-title{margin:0;font-size:25px;font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.m-pill{padding:4px 12px;border-radius:999px;font-size:14.5px;font-weight:700;background:var(--ok-bg);color:var(--ok-fg);flex-shrink:0}
+.m-pill.bad{background:var(--bad-bg);color:var(--bad-fg)}
+.m-pill.warn{background:var(--warn-bg);color:var(--warn-fg)}
+.m-nav{margin-left:auto;display:flex;align-items:center;gap:8px;flex-shrink:0}
+.m-idx{font-size:15px;font-weight:700;color:var(--muted);padding:0 4px}
+.m-btn{
+  height:46px;min-width:46px;padding:0 14px;border-radius:14px;background:var(--ctl);
+  font-size:17.5px;font-weight:700;display:flex;align-items:center;justify-content:center;gap:4px
+}
+.m-btn:active{background:var(--ctl-a);transform:scale(.95)}
+.m-close{font-size:26px;color:var(--soft);width:46px;padding:0}
+.m-sub{font-size:15px;color:var(--soft);margin-top:-4px;display:flex;flex-wrap:wrap;gap:6px 14px;align-items:center}
+.m-sub span{display:inline-flex;align-items:center;gap:5px}
+
+/* Segmented window tabs (1h / 6h / 24h) */
+.w-tabs{display:inline-flex;background:var(--ctl);padding:3px;border-radius:12px;gap:2px;flex-shrink:0}
+.w-tab{height:32px;padding:0 11px;border-radius:9px;font-size:13.5px;font-weight:700;color:var(--soft)}
+.w-tab.on{background:var(--panel);color:var(--text);box-shadow:0 1px 3px rgba(0,0,0,.18)}
+.w-tabs.lg .w-tab{height:38px;padding:0 15px;font-size:15px}
+
+/* Two-column balanced Server Detail body */
+.m-body{display:grid;grid-template-columns:.91fr 1.09fr;gap:15px;min-height:0}
+.m-col{display:flex;flex-direction:column;gap:11px;min-width:0}
+.m-box{background:var(--inset);border-radius:20px;padding:13px 16px;display:flex;flex-direction:column;gap:9px}
+.m-box.grow{flex:1;justify-content:space-between}
+.m-box-h{display:flex;align-items:center;justify-content:space-between;gap:8px;font-size:16px;font-weight:700;color:var(--text)}
+.m-box-h small{font-size:13px;font-weight:500;color:var(--muted)}
+.d-row{display:flex;flex-direction:column;gap:3px}
+.d-top{display:flex;align-items:baseline;justify-content:space-between;gap:8px;font-size:14.5px}
+.d-top span:first-child{font-weight:600;color:var(--soft)}
+.d-top em{font-style:normal;font-size:13px;color:var(--muted);margin-left:auto;margin-right:8px}
+.d-top strong{font-size:18.5px;font-weight:700}
+.d-bar{height:6.5px;border-radius:4px;background:var(--line);overflow:hidden;contain:strict}
+.d-bar i{display:block;height:100%;width:100%;border-radius:4px;background:var(--blue);transform-origin:left center;transform:scaleX(0);backface-visibility:hidden;transition:transform .28s cubic-bezier(.22,1,.36,1),background-color .24s}
+
+.stat4{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:8px}
+.st-cell{background:var(--inset);border-radius:15px;padding:9px 8px;text-align:center;display:flex;flex-direction:column;gap:2px}
+.st-cell small{font-size:12.5px;color:var(--muted)}
+.st-cell b{font-size:17.5px;font-weight:700;color:var(--text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+
+.kv-grid{display:grid;grid-template-columns:1fr 1fr;gap:7px 14px;font-size:14px}
+.kv{display:flex;justify-content:space-between;align-items:baseline;gap:8px;padding-bottom:5px;border-bottom:1px solid var(--line)}
+.kv:nth-last-child(-n+2){border-bottom:none;padding-bottom:0}
+.kv span{color:var(--muted);flex-shrink:0}
+.kv b{font-weight:700;color:var(--text);text-align:right;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.q-detail{background:var(--panel);border-radius:13px;padding:8px 12px;display:flex;flex-direction:column;gap:2px}
+.q-detail[hidden]{display:none}
+html[data-theme="light"] .q-detail{box-shadow:0 0 0 1px var(--line)}
+.q-detail-top{display:flex;justify-content:space-between;font-size:14.5px;font-weight:700}
+.q-detail-sub{font-size:12.8px;color:var(--muted)}
+
+/* Right-column Unicom Latency Waveform + Dual-Line Speed Waveform */
+.uni-head{display:flex;align-items:center;justify-content:space-between;gap:8px}
+.uni-title{display:flex;align-items:center;gap:8px;font-size:16px;font-weight:700}
+.uni-right{display:flex;align-items:center;gap:10px}
+.uni-ms{font-size:23px;font-weight:700;color:var(--teal);line-height:1}
+.uni-ms.warn{color:var(--warn)}
+.uni-ms.bad{color:var(--bad)}
+.uni-ms small{font-size:13px;font-weight:600;color:var(--muted);margin-left:2px}
+.uni-svg{width:100%;height:132px;display:block;border-radius:13px;background:var(--panel);padding:4px 6px}
+.spark-head{display:flex;align-items:center;justify-content:space-between;gap:10px}
+.spark-rates{display:flex;gap:14px;font-size:15px;font-weight:700}
+.spark-leg{display:inline-flex;align-items:center;gap:5px}
+.spark-leg::before{content:"";width:12px;height:3px;border-radius:2px;background:currentColor;display:inline-block}
+.spark-svg{width:100%;height:110px;display:block;border-radius:13px;background:var(--panel);padding:5px 6px}
+html[data-theme="light"] .uni-svg,html[data-theme="light"] .spark-svg{box-shadow:inset 0 0 0 1px var(--line)}
+.spark-foot{display:flex;align-items:center;justify-content:space-between;gap:8px;font-size:12.6px;color:var(--muted);white-space:nowrap;overflow:hidden}
+.spark-foot>span:first-child{min-width:0;overflow:hidden;text-overflow:ellipsis}
+.isp-chips{display:inline-flex;align-items:center;gap:4px;flex-shrink:0}
+.isp-chip{
+  height:25px;padding:0 7px;border-radius:8px;background:var(--ctl);color:var(--soft);
+  font-size:12px;font-weight:700;display:inline-flex;align-items:center;gap:4px;
+  transition:transform .1s ease,background-color .12s ease,color .12s ease
+}
+.isp-chip .c-dot{width:7px;height:7px}
+.isp-chip.on{background:var(--panel);color:var(--text);box-shadow:inset 0 0 0 1.5px var(--teal)}
+.isp-chip:active{transform:scale(.95)}
+.chart-wrap{position:relative;width:100%;touch-action:pan-y;contain:layout paint}
+.scrub-v{
+  position:absolute;top:6px;bottom:19px;width:1.5px;background:var(--text);opacity:.65;
+  pointer-events:none;transform:translateX(-.75px)
+}
+.scrub-v.spd{bottom:6px}
+.scrub-v[hidden],.scrub-pop[hidden]{display:none}
+.scrub-pop{
+  position:absolute;top:6px;z-index:4;padding:3px 9px;border-radius:8px;
+  background:var(--ctl-a);color:var(--text);font-size:12px;font-weight:700;
+  white-space:nowrap;pointer-events:none;box-shadow:0 3px 10px rgba(0,0,0,.28);border:1px solid var(--line)
+}
+
+/* US-Optimized 3-Carrier Latency Modal */
+.isp-modal{width:1020px}
+.isp-list{display:flex;flex-direction:column;gap:11px}
+.isp-row{
+  background:var(--inset);border-radius:20px;padding:13px 18px;
+  display:grid;grid-template-columns:246px 1fr;gap:18px;align-items:center
+}
+.isp-info{display:flex;flex-direction:column;gap:4px}
+.isp-name-line{display:flex;align-items:center;gap:9px}
+.isp-name{font-size:22px;font-weight:700}
+.isp-ms{font-size:30px;font-weight:700;line-height:1.08}
+.isp-ms small{font-size:15px;font-weight:500;color:var(--muted);margin-left:3px}
+.isp-meta{font-size:13px;color:var(--muted);line-height:1.45}
+.isp-chart{width:100%;height:102px;display:block;background:var(--panel);border-radius:14px;padding:4px 8px}
+html[data-theme="light"] .isp-chart{box-shadow:inset 0 0 0 1px var(--line)}
+
+/* Fleet & Annual Billing Overview Modal */
+.fleet-modal{width:1124px;padding:16px 24px 18px;gap:10px}
+.fl-links{display:flex;align-items:center;gap:6px;margin-left:4px;flex-wrap:nowrap;min-width:0;overflow:hidden}
+.fl-link{
+  display:inline-flex;align-items:center;gap:5px;height:30px;padding:0 10px;border-radius:999px;
+  background:var(--inset);font-size:12.5px;color:var(--soft);white-space:nowrap;flex-shrink:0
+}
+html[data-theme="light"] .fl-link{box-shadow:inset 0 0 0 1px var(--line)}
+.fl-link b{font-weight:700;color:var(--text)}
+.fl-kpis{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:10px}
+.fl-kpi{background:var(--inset);border-radius:18px;padding:11px 14px;display:flex;flex-direction:column;gap:2px}
+.fl-kpi small{font-size:12.8px;color:var(--muted);font-weight:600}
+.fl-kpi strong{font-size:20.5px;font-weight:700;color:var(--text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.fl-kpi span{font-size:12.5px;color:var(--soft);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.fl-tbl-wrap{background:var(--inset);border-radius:20px;padding:8px 14px;overflow:hidden}
+.fl-row{
+  display:grid;grid-template-columns:1.35fr 1.15fr .82fr 1.05fr .95fr .93fr;gap:10px;
+  align-items:center;padding:7.5px 8px;border-bottom:1px solid var(--line);font-size:14.5px
+}
+.fl-row:last-child{border-bottom:none}
+.fl-row.hd{font-size:13px;font-weight:700;color:var(--muted);padding-top:3px;padding-bottom:6px}
+.fl-sort{
+  display:inline-flex;align-items:center;gap:3px;font:inherit;color:inherit;
+  cursor:pointer;padding:2px 4px;margin:-2px -4px;border-radius:7px;transition:color .12s ease,background-color .12s ease
+}
+.fl-sort.on{color:var(--text);background:var(--panel)}
+.fl-sort:active{background:var(--ctl)}
+.fl-row.item{cursor:pointer;border-radius:11px;transition:background-color .12s ease}
+.fl-row.item.alert{background:rgba(255,107,107,.09);box-shadow:inset 3px 0 0 var(--bad)}
+html[data-theme="light"] .fl-row.item.alert{background:rgba(191,42,42,.08)}
+.fl-row.item:active{background:var(--ctl)}
+.fl-srv{display:flex;align-items:center;gap:8px;font-weight:700;min-width:0}
+.fl-srv .flag{width:24px;height:16px;border-radius:3px}
+.fl-srv span:last-child{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.fl-uni{display:inline-flex;align-items:center;gap:5px;font-weight:700}
+.fl-events{
+  background:var(--inset);border-radius:16px;padding:7px 13px;
+  display:flex;align-items:center;gap:7px;font-size:13px;color:var(--soft);
+  white-space:nowrap;overflow:hidden
+}
+.fl-events.expanded{
+  flex-wrap:wrap;white-space:normal;max-height:126px;overflow-y:auto;align-items:center
+}
+.fl-ev-lbl{font-weight:700;color:var(--text);flex-shrink:0}
+.fl-ev-pill{
+  padding:2px 9px;border-radius:999px;font-size:12.5px;font-weight:600;
+  background:var(--panel);color:var(--soft);overflow:hidden;text-overflow:ellipsis;max-width:100%
+}
+.fl-ev-pill.bad{background:var(--bad-bg);color:var(--bad-fg)}
+.fl-ev-pill.ok{background:var(--ok-bg);color:var(--ok-fg)}
+.fl-ev-more{
+  margin-left:auto;padding:2px 10px;border-radius:999px;font-size:12.5px;font-weight:700;
+  background:var(--ctl);color:var(--text);flex-shrink:0
+}
+.fl-ev-more:active{background:var(--ctl-a);transform:scale(.96)}
+
+/* Motion & responsive guards */
+@keyframes mnRise{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:none}}
+body.cold-enter .network-strip{animation:mnRise .22s cubic-bezier(.22,1,.36,1) backwards}
+body.cold-enter .card{animation:mnRise .26s cubic-bezier(.22,1,.36,1) backwards}
+body.motion-paused .track span,body.motion-paused .quota-track span,body.motion-paused .shade,body.motion-paused .modal{transition:none!important}
+@media(max-width:1180px){
+  .c-src{display:none}.totals{gap:8px}.aggregate strong{min-width:92px;font-size:20px}
+}
+@media(max-width:860px){
+  html,body{overflow:auto}.screen{height:auto;min-height:100%}
+  .grid{grid-template-columns:repeat(2,minmax(0,1fr));grid-template-rows:none;grid-auto-rows:336px}
+  .carriers,.pin-btn{display:none}.m-body,.isp-row,.fl-kpis{grid-template-columns:1fr}
+}
+@media (prefers-reduced-motion: reduce){*,*::before,*::after{animation:none!important;transition:none!important}}
+
+/* ===== 2026-11-13 polish (Claude; 用户: 按建议全部都做) ===== */
+html[data-theme="light"]{--bg:#e3dbce;--panel:#f6f2ea;--inset:#eee8de;--ctl:#e8e1d5;--ctl-a:#dbd3c6;--line:#d6cdbf;--tag-bg:#e6dfd3;--muted:#5a5c61}
+html[data-theme="light"] body{background:linear-gradient(150deg,#dbe3de 0%,var(--bg) 40%,#e6dccd 100%)}
+.card.has-quota{padding-top:var(--card-pt,12px);padding-bottom:var(--card-pb,10px)}
+.card.has-quota .billing{margin:3px 0 6px;height:24px}
+.card.has-quota .metrics{gap:7px}
+.card.has-quota .track{height:6.5px;margin-top:4px}
+.card.has-quota .network{padding-top:7px}
+.card.has-quota .quota{margin:4px 0 2px}
+/* second pass: the chosen time window is the brighter tab; the quota bar is that card's divider */
+.w-tab.on{background:#33425f;box-shadow:none}
+html[data-theme="light"] .w-tab.on{background:var(--panel);box-shadow:0 0 0 1px var(--line)}
+.card.has-quota .network{border-top-color:transparent}
+/* third pass: small tabs and chips in the pop-ups get an invisible margin to hit; amber text is darker on the light theme */
+.w-tab,.isp-chip,.fl-sort{position:relative}
+.w-tab::after,.isp-chip::after,.fl-sort::after{content:"";position:absolute;left:-3px;right:-3px;top:-9px;bottom:-9px}
+html[data-theme="light"] .lamp.warn,html[data-theme="light"] .amount.swp-hi,html[data-theme="light"] .uni-ms.warn{color:#8f5d00}
+
+/* ----- 2026-11-15 review (Claude): the smallest texts a little larger, same layout and data ----- */
+.c-src{font-size:13px}
+.lamp{font-size:14px}
+.plan-tag{font-size:13.5px}
+.amount{font-size:13.5px}
+.quotaline{font-size:14px}
+.quotanote{font-size:13.5px}
+.netlabel{font-size:14px}
+.unit,.aggregate .unit{font-size:14px}
+.transfer{font-size:13.5px}
+.m-box-h small,.d-top em,.uni-ms small,.isp-meta{font-size:14px}
+.st-cell small,.q-detail-sub,.spark-foot{font-size:13.5px}
+#dmUniPill,.isp-name-line .m-pill{font-size:14px!important}
+.w-tab{height:36px;padding:0 12px;font-size:15px}
+.isp-chip{font-size:13.5px}
+/* the chosen tab: tint + ring + ink, like the other pages */
+.w-tab.on,html[data-theme="light"] .w-tab.on{background:#17243a;color:#a9dcff;box-shadow:inset 0 0 0 2px #5ab8ff}
+html[data-theme="light"] .w-tab.on{background:#cedbf0;color:#285498;box-shadow:inset 0 0 0 2px #2b65bf}
+
+/* ===== 2026-11-18 Claude：顶栏的「主页」按钮和时钟与主页其他子页面一样大；13.5px 的小字统一到 14px（版式和数据不变） ===== */
+header.network-strip .home { height: 56px; padding: 0 24px; border-radius: 18px; font-size: 22px; gap: 8px; }
+header.network-strip .home svg { width: 24px; height: 24px; }
+header.network-strip #tsBrightness.monitor-brightness { height: 56px; padding: 0 18px; border-radius: 18px; font-size: 20px; gap: 6px; }
+header.network-strip #tsBrightness.monitor-brightness svg { width: 22px; height: 22px; }
+.hdr-clock { font-size: 30px; line-height: 40px; }
+.plan-tag, .amount, .quotanote, .transfer, .st-cell small, .q-detail-sub, .spark-foot, .isp-chip { font-size: 14px; }
+#dmBootTr, #dmPeak, #dmQuotaSub, #dmUniStats { font-size: 14px; }
+.c-src { font-size: 14px; }
+/* ===== 2026-11-18 Claude 第二轮：「主页」「亮度」的图标和其他页面一样跟字同色（原来深色蓝、浅色青） ===== */
+.home svg, header.network-strip #tsBrightness.monitor-brightness svg,
+html:not([data-theme="light"]) .home svg, html:not([data-theme="light"]) header.network-strip #tsBrightness.monitor-brightness svg { color: inherit; }
+
+/* ===== 2026-11-20 Claude 竖版：机器竖起来时外层把服务器页转成 800×1280（横屏样式和数据都不变）=====
+   顶栏两行（主页 · 亮度 · 总流量 · 时钟 / 三网延时 · 常驻 · 在线）；服务器卡两列四排，一屏看全八台（第二轮压紧了卡片里的行距），
+   万一台数变多，卡片区单独上下滑，顶栏不动。 */
+@media (orientation: portrait) {
+  html, body { overflow: hidden; }
+  .screen { height: 100%; min-height: 0; padding: 14px 16px 14px; gap: 12px; }
+  .network-strip { height: auto; min-height: 66px; flex-wrap: wrap; padding: 6px 12px 6px 6px; gap: 8px; row-gap: 6px; }
+  header.network-strip .home, header.network-strip #tsBrightness.monitor-brightness { height: 52px; }
+  .network-strip .carriers, .network-strip .pin-btn, .network-strip .connection { height: 42px; }
+  .network-strip .home { order: 1; }
+  .network-strip #tsBrightness { order: 2; }
+  .network-strip .totals { order: 3; }
+  .network-strip .hdr-clock { order: 4; margin-left: auto; }
+  .network-strip::after { content: ""; order: 5; flex: 0 0 100%; height: 0; }
+  .network-strip .carriers { order: 6; display: flex; margin-left: 0; flex: 1 1 auto; }
+  .network-strip .pin-btn { order: 7; display: flex; }
+  .network-strip .connection { order: 8; }
+  .grid { flex: 1; min-height: 0; overflow-y: auto; overscroll-behavior: contain; scrollbar-width: none; grid-auto-rows: minmax(268px, 1fr); align-content: stretch; gap: 12px; }
+  .card, .card.has-quota { padding: 9px 14px 7px; }
+  .billing, .card.has-quota .billing { margin: 1px 0 3px; height: 22px; }
+  .metrics, .card.has-quota .metrics { gap: 2px; }
+  .track, .card.has-quota .track { height: 5px; margin-top: 2px; }
+  .metricline strong { font-size: 20px; line-height: 24px; }
+  .quota, .card.has-quota .quota { margin: 2px 0 0; }
+  .quotaline strong { font-size: 15px; }
+  .quota-track { margin-top: 2px; }
+  .network, .card.has-quota .network { padding-top: 3px; gap: 6px; }
+  .netstat { display: grid; grid-template-columns: auto minmax(0, 1fr); column-gap: 8px; align-items: baseline; }
+  .netlabel { margin-bottom: 0; }
+  .netvalue { font-size: 20px; line-height: 24px; min-width: 0; overflow: hidden; text-overflow: ellipsis; }
+  .transfer { grid-column: 1 / -1; margin-top: 0; }
+  .grid::-webkit-scrollbar { display: none; }
+  .shade { padding: 14px; }
+  .modal, .isp-modal, .fleet-modal { width: 100%; max-height: calc(100% - 28px); padding: 16px 18px 18px; border-radius: 24px; overflow-y: auto; overscroll-behavior: contain; scrollbar-width: none; }
+  .modal::-webkit-scrollbar { display: none; }
+  .m-head { flex-wrap: wrap; gap: 8px; row-gap: 8px; }
+  .m-title { font-size: 22px; }
+  .isp-modal .m-nav { margin-left: auto; }
+  .fleet-modal .fl-links { order: 5; flex: 0 0 100%; margin-left: 0; overflow-x: auto; scrollbar-width: none; }
+  .fleet-modal .fl-links::-webkit-scrollbar { display: none; }
+  .fl-kpis { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
+  .fl-tbl-wrap { padding: 8px 10px; overflow-x: auto; scrollbar-width: none; }
+  .fl-tbl-wrap::-webkit-scrollbar { display: none; }
+  .fl-row { grid-template-columns: 14fr 11fr 8fr 10fr 9fr 9fr; gap: 6px; padding: 8px 6px; font-size: 15px; }
+  .fl-row.hd { font-size: 15px; }
+  .m-box, .isp-row { contain: layout paint; }
+}
+html.ts-rot, html.ts-rot * { touch-action: none !important; }
+</style></head><body>
+<main class="screen">
+  <header class="network-strip">
+    <a class="home" href="http://127.0.0.1:8090/" id="home" aria-label="返回主页"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="m4 10 8-7 8 7v10H4Z"/><path d="M9 20v-7h6v7"/></svg>主页</a>
+    <div class="totals" aria-label="总实时吞吐">
+      <div class="aggregate up"><span>↑</span><strong id="upload">—</strong></div>
+      <i class="split"></i>
+      <div class="aggregate down"><span>↓</span><strong id="download">—</strong></div>
+    </div>
+    <button type="button" class="carriers" id="carrierBtn" aria-label="查看主力节点三网实时延迟">
+      <span class="c-src">主节点</span><span class="c-item" id="carriersEmpty">三网延时同步中…</span>
+    </button>
+    <button type="button" class="pin-btn" id="pinBtn" aria-pressed="false" aria-label="切换页面常驻不自动返回"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.1" stroke-linecap="round" stroke-linejoin="round"><path d="M12 17v5"/><path d="M9 3h6l1 7 3 3v2H5v-2l3-3 1-7Z"/></svg><span id="pinTxt">常驻</span></button>
+    <button type="button" class="connection stale" id="connection" aria-label="服务器在线与账单总览"><i></i><span>正在同步…</span></button>
+    <span class="hdr-clock" id="hdrClock" aria-label="现在时间">--:--</span>
+  </header>
+  <section class="grid" id="servers" aria-label="服务器状态"></section>
+</main>
+
+<!-- 单机详情弹窗（含联通回程延时波形 + 实时双线网速波形） -->
+<div class="shade" id="srvShade" role="dialog" aria-modal="true" aria-labelledby="dmName">
+  <div class="modal" id="srvModal">
+    <div class="m-head">
+      <span class="flag" id="dmFlag"></span>
+      <h2 class="m-title" id="dmName">—</h2>
+      <span class="m-pill" id="dmStatus">在线</span>
+      <div class="m-nav">
+        <button type="button" class="m-btn" id="dmPrev" aria-label="上一台服务器">‹ 上一台</button>
+        <span class="m-idx" id="dmIdx">1 / 8</span>
+        <button type="button" class="m-btn" id="dmNext" aria-label="下一台服务器">下一台 ›</button>
+        <button type="button" class="m-btn m-close" id="dmClose" aria-label="关闭详情">×</button>
+      </div>
+    </div>
+    <div class="m-sub" id="dmSub"></div>
+    <div class="m-body">
+      <div class="m-col">
+        <div class="m-box">
+          <div class="m-box-h"><span>资源与系统负载</span><small id="dmLoadTxt">Load —</small></div>
+          <div class="d-row"><div class="d-top"><span>CPU 处理器</span><em id="dmCpuSpec"></em><strong id="dmCpuPct">—</strong></div><div class="d-bar"><i id="dmCpuBar"></i></div></div>
+          <div class="d-row"><div class="d-top"><span>物理内存</span><em id="dmMemAmt"></em><strong id="dmMemPct">—</strong></div><div class="d-bar"><i id="dmMemBar" style="background:var(--cyan)"></i></div></div>
+          <div class="d-row"><div class="d-top"><span>Swap 交换</span><em id="dmSwapAmt"></em><strong id="dmSwapPct">—</strong></div><div class="d-bar"><i id="dmSwapBar" style="background:var(--amber)"></i></div></div>
+          <div class="d-row"><div class="d-top"><span>磁盘存储</span><em id="dmDiskAmt"></em><strong id="dmDiskPct">—</strong></div><div class="d-bar"><i id="dmDiskBar" style="background:var(--teal)"></i></div></div>
+        </div>
+        <div class="stat4">
+          <div class="st-cell"><small>TCP 连接</small><b id="dmTcp">—</b></div>
+          <div class="st-cell"><small>UDP 连接</small><b id="dmUdp">—</b></div>
+          <div class="st-cell"><small>运行进程</small><b id="dmProc">—</b></div>
+          <div class="st-cell"><small>在线时长</small><b id="dmUp">—</b></div>
+        </div>
+        <div class="m-box grow">
+          <div class="m-box-h"><span>线路与账单详情</span><small id="dmAutoRen"></small></div>
+          <div class="q-detail" id="dmQuotaBox" hidden>
+            <div class="q-detail-top"><span id="dmQuotaTitle">周期流量</span><span id="dmQuotaVal">—</span></div>
+            <div class="q-detail-sub" id="dmQuotaSub"></div>
+          </div>
+          <div class="kv-grid">
+            <div class="kv"><span>网络线路</span><b id="dmRoute">—</b></div>
+            <div class="kv"><span>端口带宽</span><b id="dmBw">—</b></div>
+            <div class="kv"><span>月流量包</span><b id="dmTrafLim">—</b></div>
+            <div class="kv"><span>IPv6 支持</span><b id="dmIpv6">—</b></div>
+            <div class="kv"><span>续费价格</span><b id="dmPrice">—</b></div>
+            <div class="kv"><span>到期时间</span><b id="dmExpDate">—</b></div>
+          </div>
+        </div>
+      </div>
+      <div class="m-col">
+        <div class="m-box grow">
+          <div class="uni-head">
+            <div class="uni-title"><span id="dmUniTitle">联通回程延时波形</span><span class="m-pill" id="dmUniPill" style="padding:2px 9px;font-size:12.5px">同步中</span></div>
+            <div class="uni-right">
+              <span class="uni-ms" id="dmUniMs">—<small>ms</small></span>
+              <div class="w-tabs" id="dmUniTabs" role="tablist" aria-label="联通波形时间范围">
+                <button type="button" class="w-tab on" data-w="1h">1h</button>
+                <button type="button" class="w-tab" data-w="6h">6h</button>
+                <button type="button" class="w-tab" data-w="24h">24h</button>
+              </div>
+            </div>
+          </div>
+          <div class="chart-wrap" id="dmUniWrap"><svg class="uni-svg" id="dmUniSvg" viewBox="0 0 460 124" preserveAspectRatio="none"></svg><div class="scrub-v" hidden></div><div class="scrub-pop" hidden></div></div>
+          <div class="spark-foot"><span id="dmUniStats">正在加载本机联通探测历史…</span><div class="isp-chips" id="dmIspSwitch" role="tablist" aria-label="切换运营商波形"></div></div>
+        </div>
+        <div class="m-box grow">
+          <div class="spark-head">
+            <span style="font-size:16px;font-weight:700">实时上下行网速波形</span>
+            <div class="spark-rates"><span class="spark-leg up" id="dmUpRate">↑ —</span><span class="spark-leg down" id="dmDownRate">↓ —</span></div>
+          </div>
+          <div class="chart-wrap" id="dmSparkWrap"><svg class="spark-svg" id="dmSpark" viewBox="0 0 460 104" preserveAspectRatio="none"></svg><div class="scrub-v spd" hidden></div><div class="scrub-pop" hidden></div></div>
+          <div class="spark-foot"><span id="dmBootTr">重启后累计：—</span><span id="dmPeak">近60秒峰值：—</span></div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- 主力节点 · 三网实时延迟监控弹窗 -->
+<div class="shade" id="ispShade" role="dialog" aria-modal="true" aria-labelledby="ispTitle">
+  <div class="modal isp-modal">
+    <div class="m-head">
+      <h2 class="m-title" id="ispTitle">主力节点 · 三网实时延迟监控</h2>
+      <span class="m-pill" id="ispSummaryPill">实时同步</span>
+      <div class="m-nav">
+        <div class="w-tabs lg" id="ispWinTabs" role="tablist" aria-label="三网延迟时间跨度">
+          <button type="button" class="w-tab on" data-w="1h">近1小时</button>
+          <button type="button" class="w-tab" data-w="6h">近6小时</button>
+          <button type="button" class="w-tab" data-w="24h">近24小时</button>
+        </div>
+        <button type="button" class="m-btn m-close" id="ispClose" aria-label="关闭三网监控">×</button>
+      </div>
+    </div>
+    <div class="m-sub"><span>仅展示主力「主力节点」回程延迟（按 联通 → 电信 → 移动 排序 · P96 智能削峰过滤单次毛刺）</span></div>
+    <div class="isp-list" id="ispList"></div>
+  </div>
+</div>
+
+<!-- 集群规模与续费账单总览弹窗 -->
+<div class="shade" id="fleetShade" role="dialog" aria-modal="true" aria-labelledby="fleetTitle">
+  <div class="modal fleet-modal">
+    <div class="m-head">
+      <h2 class="m-title" id="fleetTitle">集群规模与续费账单总览</h2>
+      <span class="m-pill" id="flPill">8/8 在线</span>
+      <div class="fl-links" id="flLinks" aria-label="本机隧道与代理状态"></div>
+      <div class="m-nav">
+        <button type="button" class="m-btn m-close" id="flClose" aria-label="关闭集群总览">×</button>
+      </div>
+    </div>
+    <div class="fl-kpis" id="flKpis"></div>
+    <div class="fl-tbl-wrap" id="flTable"></div>
+    <div class="fl-events" id="flEvents"></div>
+  </div>
+</div>
+
+<script>
+(()=>{'use strict';
+const $=id=>document.getElementById(id), cards=new Map(), hist=new Map(), srvLatCache=new Map(), latInFlight=new Set(), latFailAt=new Map();
+const monoNow=()=>performance.now();
+const RESET_FMT=new Intl.DateTimeFormat('zh-CN',{timeZone:'Asia/Shanghai',month:'2-digit',day:'2-digit'});
+const DATE_FMT=new Intl.DateTimeFormat('zh-CN',{timeZone:'Asia/Shanghai',year:'numeric',month:'2-digit',day:'2-digit'});
+const HM_FMT=new Intl.DateTimeFormat('zh-CN',{timeZone:'Asia/Shanghai',hour:'2-digit',minute:'2-digit',hour12:false});
+const MDHM_FMT=new Intl.DateTimeFormat('zh-CN',{timeZone:'Asia/Shanghai',month:'2-digit',day:'2-digit',hour:'2-digit',minute:'2-digit',hour12:false});
+const serversEl=$('servers'),upHdr=$('upload'),downHdr=$('download'),connEl=$('connection'),connTxt=connEl.querySelector('span'),carrierBtn=$('carrierBtn'),pinBtn=$('pinBtn'),pinTxt=$('pinTxt');
+const CARRIER_RANK={'联通':0,'电信':1,'移动':2};
+const USD_CNY=7.25, AUTO_HOME_MS=300000;
+const FLAGS={
+  jp:'<rect width="36" height="24" fill="#f3f3f5"/><circle cx="18" cy="12" r="6.8" fill="#c9384d"/>',
+  fr:'<path fill="#344e9b" d="M0 0h12v24H0z"/><path fill="#f4f5f6" d="M12 0h12v24H12z"/><path fill="#df5960" d="M24 0h12v24H24z"/>',
+  de:'<path fill="#25282e" d="M0 0h36v8H0z"/><path fill="#cf4250" d="M0 8h36v8H0z"/><path fill="#edc865" d="M0 16h36v8H0z"/>',
+  us:'<rect width="36" height="24" fill="#f2eeee"/><path stroke="#c64b61" stroke-width="2" d="M0 1h36M0 5h36M0 9h36M0 13h36M0 17h36M0 21h36"/><path fill="#3f528e" d="M0 0h16v13H0z"/><path stroke="#edf0ff" stroke-width="1" stroke-dasharray="1 2" d="M2 3h11M2 6h11M2 9h11"/>',
+  vn:'<path fill="#d64a54" d="M0 0h36v24H0z"/><path fill="#f4d379" d="m18 4 2.1 5.5h5.8l-4.7 3.4 1.7 5.6-4.9-3.4-4.9 3.4 1.7-5.6-4.7-3.4h5.8Z"/>',
+  hk:'<path fill="#cf4152" d="M0 0h36v24H0z"/>'+Array.from({length:5},(_,i)=>'<path fill="#fff" d="M18 12c-5-1-5-8-1-8 4 0 4 5 1 8" transform="rotate('+i*72+' 18 12)"/>').join('')
+};
+function text(el,val){val=String(val??'');if(el&&el.textContent!==val)el.textContent=val}
+function esc(s){return String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]))}
+function carrierRank(n){for(const k in CARRIER_RANK)if(String(n||'').includes(k))return CARRIER_RANK[k];return 99}
+function sortCarriers(list){return Array.isArray(list)?[...list].sort((a,b)=>carrierRank(a.name)-carrierRank(b.name)):[]}
+function fmtHM(ms){try{return HM_FMT.format(new Date(ms))}catch(e){return '--:--'}}
+function fmtMDHM(ms){try{return MDHM_FMT.format(new Date(ms))}catch(e){return '--:--'}}
+function parseTrafficLimitBytes(tl){
+  const m=/^\s*(\d+(?:\.\d+)?)\s*(TB|GB|T|G)\s*$/i.exec(String(tl||''));
+  if(!m)return 0;
+  const v=parseFloat(m[1]),u=m[2].toUpperCase();
+  return u.startsWith('T')?v*1e12:v*1e9;
+}
+function size(n,rate=false){
+  n=Math.max(0,Number(n)||0);
+  const units=['B','KiB','MiB','GiB','TiB'];
+  let i=0;while(n>=1024&&i<4){n/=1024;i++}
+  return [n.toFixed(i===0?0:n<10?2:n<100?1:0),units[i]+(rate?'/s':'')];
+}
+function full(n,rate=false){return size(n,rate).join(' ')}
+function speed(el,n){
+  const [v,u]=size(n,true),k=v+u;
+  if(el.dataset.value!==k){
+    if(!el._unit||el._unit.parentNode!==el){
+      const num=document.createTextNode(v),unit=document.createElement('span');
+      unit.className='unit';unit.textContent=u;el.replaceChildren(num,unit);el._num=num;el._unit=unit;
+    }else{
+      if(el._num.nodeValue!==v)el._num.nodeValue=v;
+      if(el._unit.textContent!==u)el._unit.textContent=u;
+    }
+    el.dataset.value=k;
+  }
+}
+function clearSpeed(el){if(el._unit&&el._unit.parentNode===el){el._num=null;el._unit=null}text(el,'—');delete el.dataset.value}
+function uptime(n){
+  n=Math.max(0,Number(n)||0);
+  if(!n)return '—';
+  const days=Math.floor(n/86400),hours=Math.floor(n%86400/3600),mins=Math.floor(n%3600/60);
+  return days?days+'天 '+hours+'时':hours?hours+'时 '+mins+'分':mins+'分钟';
+}
+function shortBw(bw){return bw?String(bw).replace(/Mbps/i,'M').replace(/Gbps/i,'G').trim():''}
+function shortTraf(tl){return tl?String(tl).replace(/GB/i,'G').replace(/TB/i,'T').trim():''}
+function shortOffDur(sec){
+  sec=Math.max(1,Math.round(Number(sec)||0));
+  if(sec<60)return sec+'秒';
+  const m=Math.floor(sec/60);
+  if(m<60)return m+'分';
+  const h=Math.floor(m/60),rm=m%60;
+  if(h<24)return rm?h+'时'+rm+'分':h+'时';
+  return Math.floor(h/24)+'天';
+}
+function hasExtraRule(sid){return Boolean(lastData?.extra_traffic?.[String(sid)]?.limit_bytes>0)}
+function planBadge(s,withTraf=false){
+  const rt=String(s.route||'').trim(),bw=shortBw(s.bandwidth),tl=shortTraf(s.traffic_limit);
+  const hideTl=!withTraf&&(s.id===quotaServerId||hasExtraRule(s.id));
+  const prem=rt.includes('优化')||rt.includes('精品')||rt.includes('CN2')||rt.includes('GIA');
+  if(rt&&!rt.startsWith('普通')){
+    const parts=[rt,bw,hideTl?'':tl].filter(Boolean);
+    return {txt:parts.join(' · '),prem};
+  }
+  if(bw&&tl&&!hideTl)return {txt:bw+' · '+tl,prem:false};
+  return {txt:bw||(hideTl?'':tl)||rt,prem:false};
+}
+
+let quotaServerId=3,stateEtag='',lastData=null,selectedId=null,ispOpen=false,fleetOpen=false,alertAction=null;
+let fleetSort='expire',fleetAsc=true,fleetEvExpanded=false;
+let detailWin='1h',detailIsp='联通',ispWin='1h',modalIdleT=0,wakeGraceUntil=monoNow()+5500;
+let lastGoodTraffic=null,lastGoodTrafficAt=0,pendingSubCmd='';
+let pinned=false,lastUserAct=monoNow(),autoHomeTimer=0;
+try{pinned=sessionStorage.getItem('ts.monPin')==='1'}catch(e){}
+function syncPinUi(){
+  pinBtn.classList.toggle('on',pinned);
+  pinBtn.setAttribute('aria-pressed',pinned?'true':'false');
+  text(pinTxt,pinned?'常驻中':'常驻');
+}
+syncPinUi();
+pinBtn.onclick=()=>{
+  pinned=!pinned;lastUserAct=monoNow();
+  try{sessionStorage.setItem('ts.monPin',pinned?'1':'0')}catch(e){}
+  syncPinUi();
+};
+
+const subParentOrigin=(()=>{
+  try{
+    const o=document.referrer?new URL(document.referrer).origin:'';
+    if(o==='http://127.0.0.1:8090'||o==='http://localhost:8090')return o;
+  }catch(e){}
+  return 'http://127.0.0.1:8090';
+})();
+
+function armModalIdle(){
+  clearTimeout(modalIdleT);modalIdleT=0;
+  if(selectedId!==null||ispOpen||fleetOpen){
+    modalIdleT=setTimeout(closeModals,75000);
+  }
+}
+function closeModals(){
+  selectedId=null;ispOpen=false;fleetOpen=false;
+  hideAllScrubs();
+  $('srvShade').classList.remove('open');
+  $('ispShade').classList.remove('open');
+  $('fleetShade').classList.remove('open');
+  clearTimeout(modalIdleT);modalIdleT=0;
+}
+
+const activeScrubWraps=new Set();
+window.addEventListener('resize',()=>{for(const w of activeScrubWraps)w._scrubRect=null},{passive:true});
+function hideScrub(wrap){
+  if(!wrap)return;
+  clearTimeout(wrap._scrubHideT);wrap._scrubHideT=0;wrap._scrubRatio=null;wrap._scrubRect=null;
+  if(wrap._scrubRaf){cancelAnimationFrame(wrap._scrubRaf);wrap._scrubRaf=0}
+  const v=wrap.querySelector('.scrub-v'),p=wrap.querySelector('.scrub-pop');
+  if(v)v.hidden=true;if(p)p.hidden=true;
+  activeScrubWraps.delete(wrap);
+}
+function hideAllScrubs(){for(const w of [...activeScrubWraps])hideScrub(w)}
+function updateScrubView(wrap){
+  const ratio=wrap?._scrubRatio,meta=wrap?._chartMeta;
+  if(ratio==null||!meta)return;
+  const v=wrap.querySelector('.scrub-v'),p=wrap.querySelector('.scrub-pop');
+  if(!v||!p)return;
+  let label='';
+  if(meta.kind==='latency'){
+    const pts=meta.pts||[];if(pts.length<2){hideScrub(wrap);return}
+    const idx=Math.max(0,Math.min(pts.length-1,Math.round(ratio*(pts.length-1))));
+    const pt=pts[idx],val=Number(pt[0])||0,fl=Number(pt[1])||0,bmax=Number(pt[2])||val;
+    const tsMs=meta.endMs-meta.spanMs*(1-idx/(pts.length-1));
+    const hm=fmtHM(tsMs);
+    if(fl===2||val<=0)label=hm+' · 超时丢包';
+    else if(Math.round(bmax)>Math.round(val)+8)label=`${hm} · ${Math.round(val)}ms (峰 ${Math.round(bmax)}ms)`;
+    else label=`${hm} · ${Math.round(val)}ms`;
+  }else if(meta.kind==='speed'){
+    const sp=meta.samples||[];if(sp.length<2){hideScrub(wrap);return}
+    const idx=Math.max(0,Math.min(sp.length-1,Math.round(ratio*(sp.length-1))));
+    const secAgo=Math.round((sp.length-1-idx)*1.5);
+    const [u,d]=sp[idx];
+    label=(secAgo<=0?'现在':secAgo+'秒前')+' · ↑'+full(u,true)+' ↓'+full(d,true);
+  }
+  if(!label){hideScrub(wrap);return}
+  v.hidden=false;p.hidden=false;
+  v.style.left=(ratio*100).toFixed(2)+'%';
+  text(p,label);
+  if(ratio>0.55){p.style.right=((1-ratio)*100+1.5).toFixed(1)+'%';p.style.left='auto'}
+  else{p.style.left=Math.max(1.5,ratio*100+1.5).toFixed(1)+'%';p.style.right='auto'}
+}
+function setLatencyMeta(wrap,cObj,winKey){
+  if(!wrap)return;
+  const w=cObj?.win?.[winKey]||cObj?.win?.['1h']||null;
+  let pts=Array.isArray(w?.pts)?w.pts:[];
+  if(!pts.length&&Array.isArray(cObj?.delays))pts=cObj.delays.map(v=>[Number(v)||0,(Number(v)||0)<=0?2:0,Number(v)||0]);
+  const endMs=((Number(cObj?.end_ts)||Date.now()/1000)*1000);
+  const spanMs=winKey==='24h'?86400000:winKey==='6h'?21600000:3600000;
+  wrap._chartMeta=pts.length>=2?{kind:'latency',pts,endMs,spanMs}:null;
+  if(wrap._scrubRatio!=null)updateScrubView(wrap);
+}
+function setSpeedMeta(wrap,samples){
+  if(!wrap)return;
+  wrap._chartMeta=(Array.isArray(samples)&&samples.length>=2)?{kind:'speed',samples}:null;
+  if(wrap._scrubRatio!=null)updateScrubView(wrap);
+}
+function bindChartScrub(wrap){
+  if(!wrap||wrap._scrubBound)return;
+  wrap._scrubBound=true;
+  const move=(clientX,immediate)=>{
+    if(!wrap._chartMeta)return;
+    const r=wrap._scrubRect||(wrap._scrubRect=wrap.getBoundingClientRect());
+    if(!(r.width>0)){wrap._scrubRect=null;return}
+    clearTimeout(wrap._scrubHideT);wrap._scrubHideT=0;
+    wrap._scrubRatio=Math.max(0,Math.min(1,(clientX-r.left)/r.width));
+    activeScrubWraps.add(wrap);
+    if(immediate){
+      if(wrap._scrubRaf){cancelAnimationFrame(wrap._scrubRaf);wrap._scrubRaf=0}
+      updateScrubView(wrap);
+    }else if(!wrap._scrubRaf){
+      wrap._scrubRaf=requestAnimationFrame(()=>{wrap._scrubRaf=0;updateScrubView(wrap)});
+    }
+  };
+  const armHide=()=>{
+    wrap._scrubRect=null;
+    if(wrap._scrubRatio==null)return;
+    clearTimeout(wrap._scrubHideT);
+    wrap._scrubHideT=setTimeout(()=>hideScrub(wrap),3200);
+  };
+  wrap.addEventListener('pointerdown',e=>{
+    if(wrap._ptrDown)return;
+    wrap._ptrDown=true;
+    wrap._ptrId=e.pointerId;
+    wrap._scrubRect=wrap.getBoundingClientRect();
+    try{wrap.setPointerCapture(e.pointerId)}catch(err){}
+    move(e.clientX,true);
+  });
+  wrap.addEventListener('pointermove',e=>{if(wrap._ptrDown&&e.pointerId===wrap._ptrId)move(e.clientX,false)});
+  const endScrub=e=>{if(!wrap._ptrDown||e.pointerId!==wrap._ptrId)return;wrap._ptrDown=false;wrap._ptrId=null;armHide()};
+  wrap.addEventListener('pointerup',endScrub);
+  wrap.addEventListener('pointercancel',endScrub);
+  wrap.addEventListener('lostpointercapture',endScrub);
+}
+bindChartScrub($('dmUniWrap'));
+bindChartScrub($('dmSparkWrap'));
+
+function resolveTraffic(d){
+  const raw=d?.traffic;
+  if(raw?.available&&raw.limit_bytes>0){lastGoodTraffic=raw;lastGoodTrafficAt=monoNow();return raw}
+  const cached=d?.traffic_cached;
+  if(cached?.available&&cached.limit_bytes>0){lastGoodTraffic=cached;lastGoodTrafficAt=monoNow();return cached}
+  if(d&&!d.connected&&d.received_at===null)return raw||{server_id:quotaServerId,available:false};
+  const hasSid=!Array.isArray(d?.servers)||d.servers.some(s=>s.id===lastGoodTraffic?.server_id);
+  if(hasSid&&lastGoodTraffic&&monoNow()-lastGoodTrafficAt<600000){
+    const exp=Date.parse(lastGoodTraffic.to);
+    if(!Number.isFinite(exp)||exp>Date.now())return lastGoodTraffic;
+  }
+  return raw||{server_id:quotaServerId,available:false};
+}
+
+function getSpeedSamples(id){
+  const local=hist.get(id)||[];
+  const backend=lastData?.speed_hist?.[String(id)]||[];
+  return backend.length>=local.length?backend:local;
+}
+function recordSpeed(id,upBps,downBps,live){
+  if(!live)return;
+  const backend=lastData?.speed_hist?.[String(id)];
+  if(Array.isArray(backend)&&backend.length>=2){
+    hist.set(id,backend.slice(-60));
+    return;
+  }
+  let arr=hist.get(id);
+  if(!arr){arr=[];hist.set(id,arr)}
+  arr.push([Math.max(0,Number(upBps)||0),Math.max(0,Number(downBps)||0)]);
+  if(arr.length>60)arr.shift();
+}
+
+function buildLatencySvg(cObj,winKey,W,H){
+  const w=cObj?.win?.[winKey]||cObj?.win?.['1h']||null;
+  let pts=Array.isArray(w?.pts)?w.pts:[];
+  if(!pts.length&&Array.isArray(cObj?.delays)){
+    pts=cObj.delays.map(v=>[Number(v)||0,(Number(v)||0)<=0?2:0]);
+  }
+  if(pts.length<2){
+    return `<line x1="0" y1="${(H*0.44).toFixed(0)}" x2="${W}" y2="${(H*0.44).toFixed(0)}" stroke="var(--line)" stroke-dasharray="4 4"/><text x="${W/2}" y="${(H*0.48).toFixed(0)}" text-anchor="middle" fill="var(--muted)" font-size="13">正在同步分钟级延迟波形…</text>`;
+  }
+  const padT=11,padB=20,plotH=H-padT-padB;
+  const pos=pts.map(p=>Number(p[0])||0).filter(v=>v>0);
+  const sPos=[...pos].sort((a,b)=>a-b);
+  const rawMin=sPos.length?sPos[0]:100;
+  const p96=sPos.length?sPos[Math.min(sPos.length-1,Math.floor(sPos.length*0.96))]:250;
+  const lo=Math.max(0,Math.floor((rawMin*0.90)/5)*5);
+  const hi=Math.max(lo+30,Math.ceil((Math.max(p96,Number(w?.p96)||0)*1.10)/5)*5);
+  const stroke=(cObj?.stale||cObj?.status==='bad')?'var(--bad)':cObj?.status==='warn'?'var(--warn)':'var(--teal)';
+  const coords=pts.map((p,i)=>{
+    const x=(i/(pts.length-1))*W;
+    const raw=Number(p[0])||0,bmax=Number(p[2])||raw;
+    const clamped=raw>0?Math.min(hi,Math.max(lo,raw)):lo;
+    const y=padT+(1-(clamped-lo)/(hi-lo))*plotH;
+    return [x,y,Number(p[1])||0,raw,bmax];
+  });
+  const lineD='M'+coords.map(c=>c[0].toFixed(1)+','+c[1].toFixed(1)).join(' L');
+  const baseY=(padT+plotH).toFixed(1);
+  const areaD=lineD+` L${W},${baseY} L0,${baseY} Z`;
+  const marks=coords.map(c=>{
+    const x=c[0].toFixed(1),fl=c[2],bmax=c[4];
+    if(fl===2)return `<line x1="${x}" y1="${padT}" x2="${x}" y2="${baseY}" stroke="var(--bad)" stroke-width="2" stroke-dasharray="3 2" opacity=".78"/>`;
+    if(bmax>hi)return `<line x1="${x}" y1="${padT-2}" x2="${x}" y2="${padT+11}" stroke="var(--warn)" stroke-width="2.2" stroke-linecap="round" opacity=".9"/>`;
+    return '';
+  }).join('');
+  const endMs=((Number(cObj?.end_ts)||Date.now()/1000)*1000);
+  const spanMs=winKey==='24h'?86400000:winKey==='6h'?21600000:3600000;
+  const leftLbl=(winKey==='24h'?'昨日 ':'')+fmtHM(endMs-spanMs);
+  const midLbl=fmtHM(endMs-spanMs/2);
+  const rightLbl='现在 '+fmtHM(endMs);
+  const lastC=coords[coords.length-1];
+  const lblStyle='fill="var(--muted)" font-size="12" paint-order="stroke" stroke="var(--panel)" stroke-width="4" stroke-linejoin="round"';
+  return `<line x1="0" y1="${padT}" x2="${W}" y2="${padT}" stroke="var(--line)" stroke-opacity=".55" stroke-dasharray="3 3"/>`
+    +`<line x1="0" y1="${(padT+plotH/2).toFixed(1)}" x2="${W}" y2="${(padT+plotH/2).toFixed(1)}" stroke="var(--line)" stroke-dasharray="4 4"/>`
+    +`<line x1="0" y1="${baseY}" x2="${W}" y2="${baseY}" stroke="var(--line)" stroke-opacity=".75"/>`
+    +marks
+    +`<path d="${areaD}" fill="${stroke}" opacity=".15"/>`
+    +`<path d="${lineD}" fill="none" stroke="${stroke}" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/>`
+    +`<circle cx="${lastC[0].toFixed(1)}" cy="${lastC[1].toFixed(1)}" r="3.8" fill="${stroke}"/>`
+    +`<text x="5" y="${padT+9}" ${lblStyle}>${hi}ms</text>`
+    +`<text x="5" y="${(padT+plotH-3).toFixed(0)}" ${lblStyle}>${lo}ms</text>`
+    +`<text x="2" y="${H-4}" fill="var(--muted)" font-size="12">${leftLbl}</text>`
+    +`<text x="${(W/2).toFixed(0)}" y="${H-4}" text-anchor="middle" fill="var(--muted)" font-size="12">${midLbl}</text>`
+    +`<text x="${W-2}" y="${H-4}" text-anchor="end" fill="var(--muted)" font-size="12">${rightLbl}</text>`;
+}
+
+let latReqSeq=0;
+async function ensureServerLatency(sid){
+  const nowM=monoNow(),cached=srvLatCache.get(sid);
+  if(cached&&nowM-cached._at<45000)return cached;
+  if(latInFlight.has(sid))return cached||null;
+  const failAt=latFailAt.get(sid);
+  if(failAt!=null&&nowM-failAt<12000)return cached||null;
+  latInFlight.add(sid);
+  const seq=++latReqSeq;
+  try{
+    const r=await fetch('/api/server_latency?id='+encodeURIComponent(sid),{cache:'no-store'});
+    if(!r.ok){latFailAt.set(sid,monoNow());return null}
+    const j=await r.json();
+    if(j&&j.ok&&j.unicom){
+      j._at=monoNow();
+      latFailAt.delete(sid);
+      srvLatCache.set(sid,j);
+      if(selectedId===sid)renderDetailUnicom(sid);
+      return j;
+    }
+    latFailAt.set(sid,monoNow());
+  }catch(e){
+    latFailAt.set(sid,monoNow());
+  }finally{
+    latInFlight.delete(sid);
+  }
+  return null;
+}
+
+function renderDetailUnicom(sid){
+  if(selectedId!==sid)return;
+  const titleEl=$('dmUniTitle'),pill=$('dmUniPill'),msEl=$('dmUniMs'),svg=$('dmUniSvg'),wrap=$('dmUniWrap'),stTxt=$('dmUniStats'),swEl=$('dmIspSwitch');
+  text(titleEl,detailIsp+'回程延时波形');
+  for(const b of $('dmUniTabs').querySelectorAll('.w-tab'))b.classList.toggle('on',b.dataset.w===detailWin);
+  const srvObj=(lastData?.servers||[]).find(x=>x.id===sid);
+  const isOff=Boolean(lastData?.connected&&srvObj&&srvObj.alive===false);
+  let entry=srvLatCache.get(sid);
+  if(!entry&&sid===quotaServerId&&Array.isArray(lastData?.carriers)&&lastData.carriers.length){
+    const ordered=sortCarriers(lastData.carriers);
+    const uni=ordered.find(c=>String(c.name||'').includes('联通'))||ordered[0];
+    const others={};for(const c of ordered)if(c!==uni)others[c.name]=c.latest_ms;
+    entry={ok:true,server_id:sid,unicom:uni,others,carriers:ordered};
+  }
+  if(!entry||!entry.unicom){
+    text(pill,isOff?'机器离线':'同步中');pill.className='m-pill'+(isOff?' bad':' warn');
+    msEl.className='uni-ms'+(isOff?' bad':'');
+    if(msEl.dataset.v!=='—'){msEl.dataset.v='—';msEl.innerHTML='—<small>ms</small>'}
+    const emptySig='empty:'+(isOff?1:0);
+    if(svg.dataset.sig!==emptySig){
+      svg.dataset.sig=emptySig;
+      svg.innerHTML='<line x1="0" y1="54" x2="460" y2="54" stroke="var(--line)" stroke-dasharray="4 4"/><text x="230" y="59" text-anchor="middle" fill="var(--muted)" font-size="13">'+(isOff?'机器当前离线，暂无实时回程响应':'正在拉取本机 24 小时分钟级回程延时…')+'</text>';
+    }
+    setLatencyMeta(wrap,null,detailWin);
+    text(stTxt,isOff?'节点离线告警中':'正在同步哪吒三网探针记录…');
+    if(swEl.dataset.sig!=='empty'){swEl.dataset.sig='empty';swEl.innerHTML=''}
+    return;
+  }
+  const ordered=sortCarriers(Array.isArray(entry.carriers)&&entry.carriers.length?entry.carriers:[entry.unicom]);
+  const cur=ordered.find(c=>String(c.name||'').includes(detailIsp))||entry.unicom||ordered[0];
+  const w=cur.win?.[detailWin]||cur.win?.['1h']||cur;
+  const isStale=Boolean(cur.stale||isOff);
+  const st=isStale?'bad':(cur.status||'ok');
+  text(pill,isOff?'机器离线':cur.stale?'探针陈旧':st==='bad'?'波动较大':st==='warn'?'轻微波动':'流畅稳定');
+  pill.className='m-pill'+(st==='bad'?' bad':st==='warn'?' warn':'');
+  msEl.className='uni-ms'+(st==='bad'?' bad':st==='warn'?' warn':'');
+  const curMsStr=String(!isStale&&cur.latest_ms!=null?Math.round(cur.latest_ms):'—');
+  if(msEl.dataset.v!==curMsStr){msEl.dataset.v=curMsStr;msEl.innerHTML=curMsStr+'<small>ms</small>'}
+  const svgSig=`${sid}|${cur.name||''}|${detailWin}|${isStale?1:0}|${st}|${cur.end_ts||0}|${curMsStr}|${w.avg??'-'}|${w.max??'-'}`;
+  if(svg.dataset.sig!==svgSig){
+    svg.dataset.sig=svgSig;
+    svg.innerHTML=buildLatencySvg(isStale?Object.assign({},cur,{stale:true,status:'bad'}):cur,detailWin,460,124);
+  }
+  setLatencyMeta(wrap,cur,detailWin);
+  const avg=w.avg??cur.avg_ms,mn=w.min??cur.min_ms,mx=w.max??cur.max_ms,loss=w.loss??cur.loss_pct??0;
+  text(stTxt,avg!=null?`均 ${Math.round(avg)}ms · ${Math.round(mn)}~${Math.round(mx)}ms · 丢包 ${Number(loss).toFixed(1)}%`+(cur.stale?' · 陈旧':''):'暂无有效探测样本');
+  const chipSig=sid+'|'+detailIsp+'|'+isOff+'|'+ordered.slice(0,3).map(c=>c.name+':'+(c.latest_ms??'-')+':'+c.status+':'+(c.stale?1:0)).join('|');
+  if(swEl.dataset.sig!==chipSig){
+    swEl.dataset.sig=chipSig;
+    swEl.innerHTML=ordered.slice(0,3).map(c=>{
+      const key=String(c.name||'').includes('电信')?'电信':String(c.name||'').includes('移动')?'移动':'联通';
+      const cStale=Boolean(c.stale||isOff);
+      const ms=(!cStale&&c.latest_ms!=null)?Math.round(c.latest_ms)+'ms':'—';
+      const cls=(cStale||c.status==='bad')?'bad':c.status==='warn'?'warn':'';
+      const on=key===detailIsp?' on':'';
+      return `<button type="button" class="isp-chip${on}" data-isp="${key}" role="tab" aria-selected="${key===detailIsp}"><i class="c-dot ${cls}"></i><span>${esc(key)} ${ms}</span></button>`;
+    }).join('');
+    for(const btn of swEl.querySelectorAll('.isp-chip')){
+      btn.onclick=()=>{detailIsp=btn.dataset.isp;hideScrub(wrap);renderDetailUnicom(sid);armModalIdle()};
+    }
+  }
+}
+
+function ensureQuotaDom(rec){
+  if(rec.quota)return rec.quota;
+  const qEl=document.createElement('div');qEl.className='quota';
+  qEl.innerHTML='<div class="quotaline"><span></span><strong></strong></div><div class="quotanote"></div><div class="quota-track" hidden><span></span></div>';
+  rec.netEl.before(qEl);rec.el.classList.add('has-quota');
+  const bar=qEl.querySelector('.quota-track');
+  rec.quota={el:qEl,label:qEl.querySelector('.quotaline span'),value:qEl.querySelector('strong'),note:qEl.querySelector('.quotanote'),bar,span:bar.querySelector('span')};
+  return rec.quota;
+}
+
+function fmtQuotaPair(usedB,limB,approx){
+  const pct=Math.min(100,Math.max(0,100*usedB/limB));
+  if(limB>=1e12&&limB%1e12===0){
+    const limT=(limB/1e12)+' TB';
+    if(usedB>=1e12)return `${approx}${(usedB/1e12).toFixed(2)} / ${limT} (${Math.round(pct)}%)`;
+    const uG=usedB/1e9,uS=uG>=100?Math.round(uG):uG.toFixed(1);
+    return `${approx}${uS} GB / ${limT} (${Math.round(pct)}%)`;
+  }
+  const uG=usedB/1e9,lG=Math.round(limB/1e9),uS=uG>=100?Math.round(uG):uG.toFixed(1);
+  return `${approx}${uS} / ${lG} GB (${Math.round(pct)}%)`;
+}
+function fmtQuotaRem(remB){
+  if(remB>=1e12)return (remB/1e12).toFixed(2)+' TB';
+  const g=remB/1e9;return (g>=100?Math.round(g):g.toFixed(1))+' GB';
+}
+
+function renderQuota(t){
+  if(t?.server_id&&t.server_id!==quotaServerId){
+    const oldRec=cards.get(quotaServerId);
+    if(oldRec?.quota){oldRec.quota.el.remove();oldRec.quota=null;oldRec.el.classList.remove('has-quota')}
+    quotaServerId=t.server_id;
+  }
+  const rec=cards.get(quotaServerId);if(!rec)return;
+  const q=ensureQuotaDom(rec);
+  if(!t?.available||!(t.limit_bytes>0)){
+    text(q.label,'周期流量');text(q.value,'待更新');text(q.note,'每月16日 00:00 重置');
+    q.bar.hidden=false;q.span.style.transform='scaleX(0)';q.span.style.background='';q.el.classList.remove('partial');return;
+  }
+  const used=t.used_bytes/1e9,limit=t.limit_bytes/1e9,pct=Math.min(100,Math.max(0,100*used/limit));
+  const rd=new Date(t.to),reset=Number.isNaN(rd.getTime())?'每月16日':RESET_FMT.format(rd);
+  const usable=t.complete||t.calibrated;
+  text(q.label,t.calibrated?'本期估算':t.complete?'本期已用':'已记录');
+  text(q.value,fmtQuotaPair(t.used_bytes,t.limit_bytes,t.calibrated?'≈':''));
+  if(usable){
+    const remGb=t.remaining_bytes/1e9;
+    const daysLeft=Number.isNaN(rd.getTime())?0:(rd.getTime()-Date.now())/86400000;
+    const daily=(daysLeft>0.2&&remGb>0)?' · 日均'+Math.round(remGb/Math.max(0.5,daysLeft))+'G':'';
+    text(q.note,'剩'+(t.calibrated?'≈':' ')+fmtQuotaRem(t.remaining_bytes)+' · '+reset+' 00:00重置'+daily);
+  }else{
+    const rDay=t.reset_day||16;
+    text(q.note,`每月${rDay}日 00:00 重置`+(reset!=='每月16日'?` · 下次 ${reset}`:''));
+  }
+  q.el.classList.toggle('partial',!usable);q.bar.hidden=false;
+  const qTf='scaleX('+(pct/100).toFixed(3)+')',qBg=pct>=92?'var(--bad)':pct>=78?'var(--warn)':'';
+  if(q.span.style.transform!==qTf)q.span.style.transform=qTf;
+  if(q.span.style.background!==qBg)q.span.style.background=qBg;
+}
+
+function renderExtraQuotas(exMap){
+  const map=exMap||{};
+  for(const [sid,rec] of cards){
+    if(sid===quotaServerId)continue;
+    const er=map[String(sid)];
+    if(!er||!(er.limit_bytes>0)){
+      if(rec.quota){rec.quota.el.remove();rec.quota=null;rec.el.classList.remove('has-quota')}
+      continue;
+    }
+    const q=ensureQuotaDom(rec);
+    if(er.available===false){
+      const rLbl=er.reset_day?`每月${er.reset_day}日 00:00 重置`:'按月 00:00 重置';
+      const lTxt=(er.limit_bytes>=1e12&&er.limit_bytes%1e12===0)?(er.limit_bytes/1e12)+' TB':Math.round(er.limit_bytes/1e9)+' GB';
+      text(q.label,'周期流量');text(q.value,'待同步 / '+lTxt);text(q.note,rLbl);
+      q.bar.hidden=false;q.span.style.transform='scaleX(0)';q.span.style.background='';q.el.classList.remove('partial');
+      continue;
+    }
+    const usedB=Math.max(0,Number(er.used_bytes)||0),limB=er.limit_bytes,pct=Math.min(100,Math.max(0,100*usedB/limB));
+    const rd=er.to?new Date(er.to):new Date(NaN),reset=Number.isNaN(rd.getTime())?'按月':RESET_FMT.format(rd);
+    const usable=Boolean((er.complete||er.calibrated)&&er.remaining_bytes!=null);
+    text(q.label,er.calibrated?'本期估算':usable?'本期已用':'已记录');
+    text(q.value,fmtQuotaPair(usedB,limB,er.calibrated?'≈':''));
+    if(usable){
+      const remB=Math.max(0,Number(er.remaining_bytes)||0),remGb=remB/1e9;
+      const daysLeft=Number.isNaN(rd.getTime())?0:(rd.getTime()-Date.now())/86400000;
+      const daily=(daysLeft>0.2&&remGb>0)?' · 日均'+Math.round(remGb/Math.max(0.5,daysLeft))+'G':'';
+      text(q.note,'剩'+(er.calibrated?'≈':' ')+fmtQuotaRem(remB)+' · '+reset+' 00:00重置'+daily);
+    }else{
+      const rDayTxt=er.reset_day?`每月${er.reset_day}日 00:00`:(reset+' 00:00');
+      const nextTxt=reset!=='按月'?` · 下次 ${reset}`:'';
+      text(q.note,rDayTxt+' 重置'+nextTxt);
+    }
+    q.el.classList.toggle('partial',!usable);q.bar.hidden=false;
+    const qTf='scaleX('+(pct/100).toFixed(3)+')',qBg=pct>=92?'var(--bad)':pct>=78?'var(--warn)':'';
+    if(q.span.style.transform!==qTf)q.span.style.transform=qTf;
+    if(q.span.style.background!==qBg)q.span.style.background=qBg;
+  }
+}
+
+function renderCarriers(rawList){
+  const list=sortCarriers(rawList);
+  if(!list.length){
+    if(!carrierBtn.querySelector('#carriersEmpty')){
+      carrierBtn.innerHTML='<span class="c-src">主节点</span><span class="c-item" id="carriersEmpty">三网延时同步中…</span>';
+    }
+    return;
+  }
+  const usSrv=(lastData?.servers||[]).find(x=>x.id===quotaServerId);
+  const usOff=Boolean(lastData?.connected&&usSrv&&usSrv.alive===false);
+  const sig=usOff+'|'+list.slice(0,3).map(c=>c.name+':'+(c.latest_ms??'-')+':'+c.status+':'+(c.stale?1:0)).join('|');
+  if(carrierBtn.dataset.sig===sig)return;
+  carrierBtn.dataset.sig=sig;
+  const html='<span class="c-src">主节点</span>'+list.slice(0,3).map(c=>{
+    const cStale=Boolean(c.stale||usOff);
+    const ms=(!cStale&&c.latest_ms!=null)?Math.round(c.latest_ms)+'ms':'—';
+    const cls=(cStale||c.status==='bad')?'bad':c.status==='warn'?'warn':'';
+    return '<span class="c-item"><i class="c-dot '+cls+'"></i><span>'+esc(c.name)+'</span><b>'+ms+'</b></span>';
+  }).join('')+'<svg class="c-chev" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="m9 6 6 6-6 6"/></svg>';
+  carrierBtn.innerHTML=html;
+}
+
+function renderIspModal(){
+  if(!ispOpen)return;
+  for(const b of $('ispWinTabs').querySelectorAll('.w-tab'))b.classList.toggle('on',b.dataset.w===ispWin);
+  const list=sortCarriers(lastData?.carriers||[]).slice(0,3);
+  const box=$('ispList'),pill=$('ispSummaryPill');
+  if(!list.length){
+    if(box.dataset.sig!=='empty'){
+      box.dataset.sig='empty';
+      box.innerHTML='<div class="m-box"><div style="font-size:18px;color:var(--muted);padding:24px 0;text-align:center">正在同步主力节点三网探测数据…</div></div>';
+    }
+    text(pill,'同步中');pill.className='m-pill warn';
+    return;
+  }
+  box.dataset.sig='';
+  const usSrv=(lastData?.servers||[]).find(x=>x.id===quotaServerId);
+  const usOff=Boolean(lastData?.connected&&usSrv&&usSrv.alive===false);
+  const hasBad=usOff||list.some(c=>c.status==='bad'||c.stale),hasWarn=list.some(c=>c.status==='warn');
+  text(pill,usOff?'主力节点离线':hasBad?'存在异常波动':hasWarn?'轻微波动':'三网连接稳定');
+  pill.className='m-pill'+(hasBad?' bad':hasWarn?' warn':'');
+  const winLbl=ispWin==='24h'?'24h':ispWin==='6h'?'6h':'1h';
+  let rows=box.querySelectorAll('.isp-row');
+  if(rows.length!==list.length){
+    box.innerHTML=list.map(()=>'<div class="isp-row"><div class="isp-info"><div class="isp-name-line"><span class="isp-name"></span><span class="m-pill" style="padding:2px 10px;font-size:13px"></span></div><div class="isp-ms"></div><div class="isp-meta"></div></div><div class="chart-wrap"><svg class="isp-chart" viewBox="0 0 500 96" preserveAspectRatio="none"></svg><div class="scrub-v" hidden></div><div class="scrub-pop" hidden></div></div></div>').join('');
+    rows=box.querySelectorAll('.isp-row');
+    for(const r of rows)bindChartScrub(r.querySelector('.chart-wrap'));
+  }
+  list.forEach((c,i)=>{
+    const row=rows[i];
+    const w=c.win?.[ispWin]||c.win?.['1h']||c;
+    const avg=w.avg??c.avg_ms,mn=w.min??c.min_ms,mx=w.max??c.max_ms,loss=w.loss??c.loss_pct??0;
+    const cStale=Boolean(c.stale||usOff);
+    const stLbl=usOff?'机器离线':c.stale?'探针陈旧':c.status==='bad'?'波动较大':c.status==='warn'?(loss>=2?'丢包 '+Number(loss).toFixed(1)+'%':'轻微波动'):'流畅稳定';
+    const stCls=(cStale||c.status==='bad')?' bad':c.status==='warn'?' warn':'';
+    const curMs=String((!cStale&&c.latest_ms!=null)?Math.round(c.latest_ms):'—');
+    const rangeTxt=(avg!=null&&mn!=null&&mx!=null)?(`${winLbl}均值 ${Math.round(avg)}ms · 范围 ${Math.round(mn)}~${Math.round(mx)}ms`):'暂无有效样本';
+    const availTxt=`${winLbl}丢包 ${Number(loss).toFixed(1)}%`+(c.avail_pct!=null?` · 24h可用率 ${Number(c.avail_pct).toFixed(2)}%`:'');
+    text(row.querySelector('.isp-name'),c.name);
+    const rp=row.querySelector('.m-pill');text(rp,stLbl);rp.className='m-pill'+stCls;
+    const msBox=row.querySelector('.isp-ms');
+    if(msBox.dataset.v!==curMs){msBox.dataset.v=curMs;msBox.innerHTML=curMs+'<small>ms</small>'}
+    const metaBox=row.querySelector('.isp-meta'),metaHtml=esc(rangeTxt)+'<br>'+esc(availTxt);
+    if(metaBox.dataset.sig!==metaHtml){metaBox.dataset.sig=metaHtml;metaBox.innerHTML=metaHtml}
+    const wrap=row.querySelector('.chart-wrap'),svg=row.querySelector('.isp-chart');
+    const svgSig=`${c.name}|${ispWin}|${cStale?1:0}|${c.status||''}|${c.end_ts||0}|${curMs}|${w.avg??'-'}|${w.max??'-'}`;
+    if(svg.dataset.sig!==svgSig){
+      svg.dataset.sig=svgSig;
+      svg.innerHTML=buildLatencySvg(cStale?Object.assign({},c,{stale:true,status:'bad'}):c,ispWin,500,96);
+    }
+    setLatencyMeta(wrap,c,ispWin);
+  });
+}
+
+function getSrvUnicom(s,d){
+  if(!s||s.alive===false)return null;
+  const u=(d?.unicom_map||{})[String(s.id)];
+  if(u)return u;
+  if(s.id===quotaServerId&&Array.isArray(d?.carriers)&&d.carriers.length){
+    const c=sortCarriers(d.carriers)[0];
+    if(c&&!c.stale&&c.latest_ms!=null)return {ms:c.latest_ms,status:c.status||'ok'};
+  }
+  return null;
+}
+
+function isAlertServer(s,d,tr){
+  if(!s)return false;
+  if(d?.connected&&s.alive===false)return true;
+  if(s.alive===true){
+    const cpuP=Number(s.cpu)||0;
+    const memP=s.mem_total?100*(s.mem_used||0)/s.mem_total:0;
+    const dskP=s.disk_total?100*(s.disk_used||0)/s.disk_total:0;
+    if(cpuP>=85||memP>=85||dskP>=85)return true;
+    const u=getSrvUnicom(s,d);
+    if(u?.status==='bad')return true;
+  }
+  if(s.expires){
+    const ep=Date.parse(s.expires);
+    if(Number.isFinite(ep)&&Math.ceil((ep-Date.now())/86400000)<=14)return true;
+  }
+  if(tr?.available&&tr.server_id===s.id&&tr.limit_bytes>0&&(100*tr.used_bytes/tr.limit_bytes)>=85)return true;
+  const er=d?.extra_traffic?.[String(s.id)];
+  if(er?.available!==false&&er?.limit_bytes>0&&(100*er.used_bytes/er.limit_bytes)>=85)return true;
+  return false;
+}
+
+function renderFleetModal(){
+  if(!fleetOpen||!lastData)return;
+  const list=lastData.servers||[];
+  const t=resolveTraffic(lastData);
+  const links=Array.isArray(lastData.local_links)?lastData.local_links:[];
+  const linksHtml=links.map(lk=>{
+    const cls=lk.status==='bad'?'bad':lk.status==='warn'?'warn':'';
+    return `<span class="fl-link"><i class="c-dot ${cls}"></i><b>${esc(lk.name)}</b><span>${esc(lk.detail)}</span></span>`;
+  }).join('');
+  if($('flLinks').dataset.sig!==linksHtml){$('flLinks').dataset.sig=linksHtml;$('flLinks').innerHTML=linksHtml}
+
+  let cores=0,memTot=0,diskTot=0,upRate=0,dnRate=0,trAll=0,usdYr=0,cnyYr=0,onCnt=0;
+  const cycMult={year:1,halfyear:2,quarter:4,month:12};
+  for(const s of list){
+    if(s.alive)onCnt++;
+    cores+=Number(s.cpu_cores)||0;
+    memTot+=Number(s.mem_total)||0;
+    diskTot+=Number(s.disk_total)||0;
+    if(lastData.connected&&s.alive){upRate+=Number(s.net_out_speed)||0;dnRate+=Number(s.net_in_speed)||0}
+    trAll+=(Number(s.net_out_transfer)||0)+(Number(s.net_in_transfer)||0);
+    const rp=String(s.price||'').trim();
+    const m=/(\d+(?:\.\d+)?)/.exec(rp);
+    if(m){
+      const amt=parseFloat(m[1]),mult=cycMult[String(s.cycle||'year').toLowerCase()]||1;
+      if(/[¥￥]|cny|rmb/i.test(rp))cnyYr+=amt*mult;else usdYr+=amt*mult;
+    }
+  }
+  const eqYear=Math.round(usdYr*USD_CNY+cnyYr),eqMon=Math.round(eqYear/12);
+  text($('flPill'),`${onCnt}/${list.length} 在线`);
+  $('flPill').className='m-pill'+(onCnt<list.length?' bad':'');
+
+  const expTs=s=>{const v=s.expires?Date.parse(s.expires):Infinity;return Number.isFinite(v)?v:Infinity};
+  const byExp=[...list].sort((a,b)=>expTs(a)-expTs(b));
+  const near=byExp[0];
+  const nearDays=(near?.expires&&Number.isFinite(Date.parse(near.expires)))?Math.ceil((Date.parse(near.expires)-Date.now())/86400000):null;
+  const remGb=(t&&t.available&&t.remaining_bytes!=null)?Math.round(t.remaining_bytes/1e9)+' GB':'待同步';
+  const costMain=[usdYr?`$${Math.round(usdYr)}/年`:'',cnyYr?`¥${Math.round(cnyYr)}/年`:''].filter(Boolean).join(' + ')||'—';
+
+  const kpisHtml=
+    `<div class="fl-kpi"><small>集群总算力与容量</small><strong>${list.length} 台 · ${cores||'—'} 核</strong><span>内存 ${full(memTot)} · 存储 ${full(diskTot)}</span></div>`
+    +`<div class="fl-kpi"><small>总实时与累计流量</small><strong>↑ ${full(upRate,true)}</strong><span>↓ ${full(dnRate,true)} · 累计 ${full(trAll)}</span></div>`
+    +`<div class="fl-kpi"><small>年度续费总账单</small><strong>${esc(costMain)}</strong><span>折合 ≈ ¥${eqYear}/年 · 月均 ≈ ¥${eqMon}</span></div>`
+    +`<div class="fl-kpi"><small>主节点流量与最近到期</small><strong>主节点剩 ≈ ${esc(remGb)}</strong><span>${near&&nearDays!=null?esc(near.name)+` · 剩 ${nearDays} 天`:'到期充裕'}</span></div>`;
+  if($('flKpis').dataset.sig!==kpisHtml){$('flKpis').dataset.sig=kpisHtml;$('flKpis').innerHTML=kpisHtml}
+
+  const idxMap=new Map(list.map((s,i)=>[s.id,i]));
+  const loadVal=s=>s.alive?Math.max(Number(s.cpu)||0,s.mem_total?100*(s.mem_used||0)/s.mem_total:0,s.disk_total?100*(s.disk_used||0)/s.disk_total:0):-1;
+  const latVal=s=>{const u=getSrvUnicom(s,lastData);return (u&&u.ms!=null)?Number(u.ms):null};
+  const sorted=[...list].sort((a,b)=>{
+    if(fleetSort==='alert'){
+      const aa=isAlertServer(a,lastData,t)?0:1,bb=isAlertServer(b,lastData,t)?0:1;
+      if(aa!==bb)return aa-bb;
+      if((a.alive===false)!==(b.alive===false))return a.alive===false?-1:1;
+      return loadVal(b)-loadVal(a);
+    }
+    if(fleetSort==='default'){
+      const d=(idxMap.get(a.id)||0)-(idxMap.get(b.id)||0);
+      return fleetAsc?d:-d;
+    }
+    if(fleetSort==='lat'){
+      const la=latVal(a),lb=latVal(b);
+      if(la===null&&lb===null)return (idxMap.get(a.id)||0)-(idxMap.get(b.id)||0);
+      if(la===null)return fleetAsc?1:-1;
+      if(lb===null)return fleetAsc?-1:1;
+      return fleetAsc?(la-lb):(lb-la);
+    }
+    if(fleetSort==='load'){
+      const da=loadVal(a),db=loadVal(b);
+      return fleetAsc?(da-db):(db-da);
+    }
+    const ea=expTs(a),eb=expTs(b);
+    return fleetAsc?(ea-eb):(eb-ea);
+  });
+
+  const sortMeta={
+    default:'服务器（点行看详情）',
+    lat:'联通延时',
+    load:'实时负载',
+    expire:'到期剩余'
+  };
+  const tbl=$('flTable');
+  const orderSig=sorted.map(s=>`${s.id}:${s.country||''}`).join(',');
+  if(tbl.dataset.orderSig!==orderSig){
+    tbl.dataset.orderSig=orderSig;
+    const skel=sorted.map(s=>`<div class="fl-row item" data-sid="${s.id}"><div class="fl-srv"><span class="flag">${flagSvg(s.country||'')}</span><span class="fl-nm"></span></div><div><span class="plan-tag"></span></div><div class="fl-uni"><i class="c-dot"></i><span class="fl-ums"></span></div><div class="fl-ld"></div><div class="fl-pr"></div><div class="fl-ex" style="font-weight:700"></div></div>`).join('');
+    tbl.innerHTML=`<div class="fl-row hd"><div><button type="button" class="fl-sort" data-sort="default"></button></div><div>线路带宽</div><div><button type="button" class="fl-sort" data-sort="lat"></button></div><div><button type="button" class="fl-sort" data-sort="load"></button></div><div>续费账单</div><div><button type="button" class="fl-sort" data-sort="expire"></button></div></div>`+skel;
+    for(const b of tbl.querySelectorAll('.fl-sort')){
+      b.onclick=()=>{
+        const k=b.dataset.sort;
+        if(fleetSort===k)fleetAsc=!fleetAsc;
+        else{fleetSort=k;fleetAsc=(k!=='load')}
+        renderFleetModal();armModalIdle();
+      };
+    }
+    for(const r of tbl.querySelectorAll('.fl-row.item')){
+      r.onclick=()=>openDetail(Number(r.dataset.sid));
+    }
+  }
+  for(const b of tbl.querySelectorAll('.fl-sort')){
+    const key=b.dataset.sort;
+    const on=fleetSort===key||(key==='default'&&fleetSort==='alert');
+    const arrow=fleetSort===key?(fleetAsc?' ▴':' ▾'):(key==='default'&&fleetSort==='alert'?' !':'');
+    b.classList.toggle('on',on);
+    text(b,(sortMeta[key]||'')+arrow);
+  }
+  const cycLbl={Year:'年',Month:'月',Quarter:'季',HalfYear:'半年'};
+  const itemRows=tbl.querySelectorAll('.fl-row.item');
+  sorted.forEach((s,idx)=>{
+    const r=itemRows[idx];if(!r)return;
+    const pb=planBadge(s,true);
+    const u=getSrvUnicom(s,lastData);
+    const uMs=s.alive===false?'离线':(u&&u.ms!=null?Math.round(u.ms)+' ms':'—');
+    const uCls=s.alive===false?'bad':(u?.status==='bad'?'bad':u?.status==='warn'?'warn':'');
+    const cpuP=s.alive?Number(s.cpu||0).toFixed(0)+'%':'—';
+    const memP=(s.alive&&s.mem_total)?Math.round(100*(s.mem_used||0)/s.mem_total)+'%':'—';
+    const dskP=(s.alive&&s.disk_total)?Math.round(100*(s.disk_used||0)/s.disk_total):0;
+    const loadExtra=dskP>=85?` · 盘${dskP}%`:'';
+    const pr=s.price?(s.price+'/'+(cycLbl[s.cycle]||'年')+(s.auto_renewal?' · 自动':'')):'—';
+    const dLeft=(s.expires&&Number.isFinite(Date.parse(s.expires)))?Math.ceil((Date.parse(s.expires)-Date.now())/86400000):null;
+    const expTxt=dLeft!=null?(dLeft>=0?`剩余 ${dLeft} 天`:'已到期'):'长期';
+    r.classList.toggle('alert',isAlertServer(s,lastData,t));
+    text(r.querySelector('.fl-nm'),s.name||'');
+    const pt=r.querySelector('.plan-tag');text(pt,pb.txt||'标准');pt.className='plan-tag'+(pb.prem?' prem':'');
+    r.querySelector('.c-dot').className='c-dot'+(uCls?' '+uCls:'');
+    text(r.querySelector('.fl-ums'),uMs);
+    text(r.querySelector('.fl-ld'),`CPU ${cpuP} · 内存 ${memP}${loadExtra}`);
+    text(r.querySelector('.fl-pr'),pr);
+    const exEl=r.querySelector('.fl-ex');
+    text(exEl,expTxt);
+    const exClr=(dLeft!=null&&dLeft<=30)?'var(--bad)':'var(--text)';
+    if(exEl.style.color!==exClr)exEl.style.color=exClr;
+  });
+
+  const evBox=$('flEvents'),offSince=lastData.offline_since||{},evs=Array.isArray(lastData.events)?lastData.events:[];
+  const nowS=Date.now()/1000;
+  const liveOffPills=[];
+  for(const s of list){
+    if(s.alive===false){
+      const ts=Number(offSince[String(s.id)])||0;
+      const info=ts?`${fmtHM(ts*1000)} 离线 · 已 ${shortOffDur(nowS-ts)}`:'当前离线';
+      liveOffPills.push(`<span class="fl-ev-pill bad">${esc(s.name)} · ${esc(info)}</span>`);
+    }
+  }
+  const fullEvPills=evs.map(ev=>{
+    if(!ev)return '';
+    const stamp=fmtMDHM((ev.at||nowS)*1000);
+    if(ev.type==='recovered')return `<span class="fl-ev-pill ok">${esc(ev.name)} · ${esc(stamp)} 恢复（曾离线 ${shortOffDur(ev.duration_s)}）</span>`;
+    if(ev.type==='offline')return `<span class="fl-ev-pill bad">${esc(ev.name)} · ${esc(stamp)} 离线</span>`;
+    return '';
+  }).filter(Boolean);
+
+  const briefPills=[...liveOffPills];
+  for(const ev of evs){
+    if(briefPills.length>=3)break;
+    if(ev&&ev.type==='recovered'){
+      briefPills.push(`<span class="fl-ev-pill ok">${esc(ev.name)} · ${fmtHM((ev.at||nowS)*1000)} 恢复（曾离线 ${shortOffDur(ev.duration_s)}）</span>`);
+    }
+  }
+  const canExpand=(liveOffPills.length+fullEvPills.length)>briefPills.length||fullEvPills.length>3;
+  const shown=fleetEvExpanded?[...liveOffPills,...fullEvPills]:briefPills;
+  evBox.classList.toggle('expanded',Boolean(fleetEvExpanded&&canExpand));
+  const toggleBtn=canExpand?`<button type="button" class="fl-ev-more" id="flEvToggle">${fleetEvExpanded?'收起 ▴':`历史 ${evs.length} 条 ▾`}</button>`:'';
+  const evHtml='<span class="fl-ev-lbl">运行记录</span>'+(shown.length?shown.join(''):`<span class="fl-ev-pill ok">全部 ${list.length} 台节点持续稳定在线 · 近期无掉线记录</span>`)+toggleBtn;
+  if(evBox.dataset.sig!==evHtml){
+    evBox.dataset.sig=evHtml;
+    evBox.innerHTML=evHtml;
+    const tg=$('flEvToggle');
+    if(tg)tg.onclick=()=>{fleetEvExpanded=!fleetEvExpanded;renderFleetModal();armModalIdle()};
+  }
+}
+
+function setDetailBar(el,pct,bg){
+  const tf='scaleX('+(pct/100).toFixed(3)+')';
+  if(el._tf!==tf){el._tf=tf;el.style.transform=tf}
+  if(el._bg!==bg){el._bg=bg;el.style.background=bg}
+}
+
+function renderDetailModal(){
+  if(selectedId===null||!lastData)return;
+  const list=lastData.servers||[];
+  const idx=list.findIndex(x=>x.id===selectedId);
+  const s=idx>=0?list[idx]:null;
+  if(!s){closeModals();return}
+  text($('dmIdx'),`${idx+1} / ${list.length}`);
+  const fresh=lastData.connected===true,known=s.alive!==null&&s.alive!==undefined,live=fresh&&s.alive;
+  const cc=s.country||'';
+  if($('dmFlag').dataset.cc!==cc){$('dmFlag').dataset.cc=cc;$('dmFlag').innerHTML=flagSvg(cc)}
+  text($('dmName'),s.name||'服务器');
+  const stEl=$('dmStatus');
+  const offSinceS=Number((lastData.offline_since||{})[String(s.id)])||0;
+  if(!fresh||!known){text(stEl,'同步中');stEl.className='m-pill warn'}
+  else if(s.alive){text(stEl,'在线运行');stEl.className='m-pill'}
+  else{text(stEl,offSinceS?('离线告警 · '+shortOffDur(Date.now()/1000-offSinceS)):'离线告警');stEl.className='m-pill bad'}
+
+  const subParts=[];
+  if(s.cpu_model)subParts.push(s.cpu_model+(s.cpu_cores?' · '+s.cpu_cores+' 核':''));
+  else if(s.cpu_cores)subParts.push(s.cpu_cores+' 核处理器');
+  const osPart=[s.platform,s.arch,s.virt?s.virt.toUpperCase():''].filter(Boolean).join(' · ');
+  if(osPart)subParts.push(osPart);
+  if(known&&!s.alive&&offSinceS)subParts.push('离线始于 '+fmtHM(offSinceS*1000));
+  else if(known&&s.uptime)subParts.push('连续在线 '+uptime(s.uptime));
+  if(known&&s.alive&&Array.isArray(lastData.events)){
+    const recEv=lastData.events.find(ev=>ev&&ev.id===s.id&&ev.type==='recovered'&&(Date.now()/1000-(ev.at||0))<86400);
+    if(recEv)subParts.push(fmtHM(recEv.at*1000)+' 恢复（曾离线 '+shortOffDur(recEv.duration_s)+'）');
+  }
+  const subHtml=subParts.map(p=>'<span>'+esc(p)+'</span>').join('<span>·</span>');
+  if($('dmSub').dataset.sig!==subHtml){$('dmSub').dataset.sig=subHtml;$('dmSub').innerHTML=subHtml}
+
+  const l1=Number(s.load_1||0).toFixed(2),l5=Number(s.load_5||0).toFixed(2),l15=Number(s.load_15||0).toFixed(2);
+  text($('dmLoadTxt'),known?`Load ${l1} / ${l5} / ${l15}`:'Load —');
+
+  const cpuPct=known?Math.min(100,Math.max(0,s.cpu||0)):0;
+  const memPct=(known&&s.mem_total)?Math.min(100,Math.max(0,100*(s.mem_used||0)/s.mem_total)):0;
+  const swpTot=Number(s.swap_total)||0,swpUsed=Number(s.swap_used)||0;
+  const swpPct=(known&&swpTot>0)?Math.min(100,Math.max(0,100*swpUsed/swpTot)):0;
+  const dskPct=(known&&s.disk_total)?Math.min(100,Math.max(0,100*(s.disk_used||0)/s.disk_total)):0;
+
+  text($('dmCpuSpec'),s.cpu_cores?s.cpu_cores+' 核':'');
+  text($('dmCpuPct'),known?cpuPct.toFixed(1)+'%':'—');
+  setDetailBar($('dmCpuBar'),cpuPct,cpuPct>=92?'var(--bad)':cpuPct>=85?'var(--warn)':'var(--blue)');
+
+  text($('dmMemAmt'),known&&s.mem_total?full(s.mem_used)+' / '+full(s.mem_total):'');
+  text($('dmMemPct'),known?memPct.toFixed(1)+'%':'—');
+  setDetailBar($('dmMemBar'),memPct,memPct>=92?'var(--bad)':memPct>=85?'var(--warn)':'var(--cyan)');
+
+  text($('dmSwapAmt'),known?(swpTot>0?full(swpUsed)+' / '+full(swpTot):'未配置 Swap'):'');
+  text($('dmSwapPct'),known?(swpTot>0?swpPct.toFixed(1)+'%':'无'):'—');
+  setDetailBar($('dmSwapBar'),swpPct,swpPct>=85?'var(--bad)':swpPct>=50?'var(--warn)':'var(--amber)');
+
+  text($('dmDiskAmt'),known&&s.disk_total?full(s.disk_used)+' / '+full(s.disk_total):'');
+  text($('dmDiskPct'),known?dskPct.toFixed(1)+'%':'—');
+  setDetailBar($('dmDiskBar'),dskPct,dskPct>=92?'var(--bad)':dskPct>=85?'var(--warn)':'var(--teal)');
+
+  text($('dmTcp'),known?Math.round(s.tcp_conn_count||0):'—');
+  text($('dmUdp'),known?Math.round(s.udp_conn_count||0):'—');
+  text($('dmProc'),known?Math.round(s.process_count||0):'—');
+  text($('dmUp'),known?uptime(s.uptime):'—');
+
+  renderDetailUnicom(s.id);
+  const latCached=srvLatCache.get(s.id);
+  if(s.alive!==false&&(!latCached||monoNow()-latCached._at>=58000))ensureServerLatency(s.id);
+
+  text($('dmUpRate'),'↑ '+(live?full(s.net_out_speed,true):'0 B/s'));
+  text($('dmDownRate'),'↓ '+(live?full(s.net_in_speed,true):'0 B/s'));
+  text($('dmBootTr'),'重启后累计：↑ '+full(s.net_out_transfer)+' · ↓ '+full(s.net_in_transfer));
+
+  const samples=getSpeedSamples(s.id);
+  let peak=0;for(const [u,d] of samples)peak=Math.max(peak,u,d);
+  text($('dmPeak'),'近60秒峰值：'+full(peak,true));
+  const svg=$('dmSpark'),spWrap=$('dmSparkWrap');
+  if(samples.length<2){
+    if(svg.dataset.sig!=='empty'){
+      svg.dataset.sig='empty';
+      svg.innerHTML='<line x1="0" y1="52" x2="460" y2="52" stroke="var(--line)" stroke-dasharray="4 4"/><text x="230" y="57" text-anchor="middle" fill="var(--muted)" font-size="13">正在采集实时上下行速率波形…</text>';
+    }
+    setSpeedMeta(spWrap,null);
+  }else{
+    const W=460,H=104,top=8,bot=8,ceil=Math.max(1024,peak*1.14);
+    const poly=idx=>samples.map((p,i)=>{
+      const x=(i/(samples.length-1))*W;
+      const y=top+(1-Math.min(1,p[idx]/ceil))*(H-top-bot);
+      return x.toFixed(1)+','+y.toFixed(1);
+    });
+    const upPts=poly(0),dnPts=poly(1);
+    const spSig=dnPts.join('|')+'#'+upPts.join('|');
+    if(svg.dataset.sig!==spSig){
+      svg.dataset.sig=spSig;
+      svg.innerHTML=`<line x1="0" y1="52" x2="460" y2="52" stroke="var(--line)" stroke-dasharray="4 4"/>`
+        +`<path d="M${dnPts.join(' L')} L${W},${H} L0,${H} Z" fill="var(--teal)" opacity=".14"/>`
+        +`<path d="M${dnPts.join(' L')}" fill="none" stroke="var(--teal)" stroke-width="2.4" stroke-linecap="round"/>`
+        +`<path d="M${upPts.join(' L')}" fill="none" stroke="var(--blue)" stroke-width="2.2" stroke-linecap="round"/>`;
+    }
+    setSpeedMeta(spWrap,samples);
+  }
+
+  const t=resolveTraffic(lastData);
+  const er=lastData.extra_traffic?.[String(s.id)];
+  const pkgBytes=parseTrafficLimitBytes(s.traffic_limit);
+  const qBox=$('dmQuotaBox');
+  if(t&&t.server_id===s.id&&t.available&&t.limit_bytes>0){
+    qBox.hidden=false;
+    const usedB=Math.max(0,Number(t.used_bytes)||0),limB=t.limit_bytes;
+    const extraTxt=t.extra_bytes>0?` · 含 ${Math.round(t.extra_bytes/1e9)}G 流量包`:'';
+    const rDay=t.reset_day||s.traffic_reset_day||16;
+    const rd=new Date(t.to),reset=Number.isNaN(rd.getTime())?`每月${rDay}日 00:00`:RESET_FMT.format(rd)+' 00:00';
+    const usable=Boolean((t.complete||t.calibrated)&&t.remaining_bytes!=null);
+    text($('dmQuotaTitle'),(t.calibrated?'本期估算':usable?'本期已用':'已记录')+extraTxt);
+    if(usable){
+      const remB=Math.max(0,Number(t.remaining_bytes)||0),remGb=remB/1e9;
+      const daysLeft=Number.isNaN(rd.getTime())?0:(rd.getTime()-Date.now())/86400000;
+      const daily=(daysLeft>0.2&&remGb>0)?` · 日均 ≈${Math.round(remGb/Math.max(0.5,daysLeft))} GB`:'';
+      text($('dmQuotaVal'),fmtQuotaPair(usedB,limB,t.calibrated?'≈':''));
+      text($('dmQuotaSub'),`剩余 ${(t.calibrated?'≈':'')+remGb.toFixed(1)} GB · ${reset} 重置（每月${rDay}日）${daily}`);
+    }else{
+      text($('dmQuotaVal'),'已记录 '+fmtQuotaPair(usedB,limB,''));
+      text($('dmQuotaSub'),`每月${rDay}日 00:00 重置 · 下次 ${reset} 起完整统计剩余额度`);
+    }
+  }else if(er&&er.available===false&&er.limit_bytes>0){
+    qBox.hidden=false;
+    const lTxt=(er.limit_bytes>=1e12&&er.limit_bytes%1e12===0)?(er.limit_bytes/1e12)+' TB':Math.round(er.limit_bytes/1e9)+' GB';
+    text($('dmQuotaTitle'),'周期流量');
+    text($('dmQuotaVal'),'待同步 / '+lTxt);
+    text($('dmQuotaSub'),er.reset_day?`每月${er.reset_day}日 00:00 重置`:'按月 00:00 重置');
+  }else if(er&&er.limit_bytes>0){
+    qBox.hidden=false;
+    const usedB=Math.max(0,Number(er.used_bytes)||0),limB=er.limit_bytes;
+    const rd=er.to?new Date(er.to):new Date(NaN),reset=Number.isNaN(rd.getTime())?'按月':RESET_FMT.format(rd)+' 00:00';
+    const usable=Boolean((er.complete||er.calibrated)&&er.remaining_bytes!=null);
+    const modeTxt=er.mode==='max'?'单向峰值':er.mode==='out'?'单向上行':er.mode==='both'?'双向合计':'';
+    const rDayTag=er.reset_day?`（每月${er.reset_day}日）`:'';
+    text($('dmQuotaTitle'),(er.rule_name||'周期流量')+(modeTxt?' · '+modeTxt:''));
+    if(usable){
+      const remB=Math.max(0,Number(er.remaining_bytes)||0),remGb=remB/1e9;
+      const daysLeft=Number.isNaN(rd.getTime())?0:(rd.getTime()-Date.now())/86400000;
+      const daily=(daysLeft>0.2&&remGb>0)?` · 日均 ≈${Math.round(remGb/Math.max(0.5,daysLeft))} GB`:'';
+      text($('dmQuotaVal'),fmtQuotaPair(usedB,limB,er.calibrated?'≈':''));
+      text($('dmQuotaSub'),`剩余 ${(er.calibrated?'≈':'')+fmtQuotaRem(remB)} · ${reset} 重置${rDayTag}${daily}`);
+    }else{
+      text($('dmQuotaVal'),'已记录 '+fmtQuotaPair(usedB,limB,''));
+      text($('dmQuotaSub'),`${er.reset_day?`每月${er.reset_day}日 00:00 重置 · 下次 ${reset}`:`${reset} 重置`} 起完整统计剩余额度`);
+    }
+  }else if(known&&pkgBytes>0){
+    qBox.hidden=false;
+    const oneWay=s.traffic_type==='单向';
+    const bootBytes=oneWay?Math.max(Number(s.net_out_transfer)||0,Number(s.net_in_transfer)||0):((Number(s.net_out_transfer)||0)+(Number(s.net_in_transfer)||0));
+    const usedGb=bootBytes/1e9,limGb=pkgBytes/1e9,pct=Math.min(999,Math.max(0,100*usedGb/limGb));
+    const usedStr=usedGb>=100?Math.round(usedGb):usedGb.toFixed(1);
+    text($('dmQuotaTitle'),'开机累计参考（'+(s.traffic_type||'双向')+'）');
+    text($('dmQuotaVal'),`累计 ${usedStr} / 月包 ${Math.round(limGb)} GB (${Math.round(pct)}%)`);
+    text($('dmQuotaSub'),'自上次重启累计'+(s.uptime?`（在线 ${uptime(s.uptime)}）`:'')+' · 未绑哪吒月重置规则，非账单剩余');
+  }else{
+    qBox.hidden=true;
+  }
+
+  text($('dmAutoRen'),s.auto_renewal===true?'已开启自动续费':'');
+  text($('dmRoute'),s.route||'标准线路');
+  text($('dmBw'),s.bandwidth||'—');
+  const effType=(t&&t.server_id===s.id&&String(t.rule_name||'').includes('双向'))?'双向':(s.traffic_type||'');
+  const extraPkg=(t&&t.server_id===s.id&&t.extra_bytes>0)?`+${Math.round(t.extra_bytes/1e9)}G`:'';
+  text($('dmTrafLim'),(s.traffic_limit||'—')+extraPkg+(effType?' · '+effType:''));
+  text($('dmIpv6'),s.ipv6===true?'已支持':s.ipv6===false?'仅 IPv4':'—');
+  const cycMap={Year:'年',Month:'月',Quarter:'季',HalfYear:'半年'};
+  text($('dmPrice'),s.price?(s.price+(s.cycle?' / '+(cycMap[s.cycle]||s.cycle):'')):'—');
+  if(s.expires){
+    const ep=Date.parse(s.expires);
+    if(Number.isFinite(ep)){
+      const days=Math.ceil((ep-Date.now())/86400000);
+      text($('dmExpDate'),DATE_FMT.format(new Date(ep)).replace(/\//g,'-')+(days>=0?` (${days}天)`:' (已到期)'));
+    }else text($('dmExpDate'),s.expires);
+  }else text($('dmExpDate'),'长期');
+}
+
+function openDetail(id,isp){
+  ispOpen=false;fleetOpen=false;
+  detailIsp=(isp==='电信'||isp==='移动'||isp==='联通')?isp:'联通';
+  hideAllScrubs();
+  $('ispShade').classList.remove('open');
+  $('fleetShade').classList.remove('open');
+  selectedId=id;
+  renderDetailModal();
+  ensureServerLatency(id);
+  $('srvShade').classList.add('open');
+  armModalIdle();
+}
+function openIspModal(){
+  selectedId=null;fleetOpen=false;
+  hideAllScrubs();
+  $('srvShade').classList.remove('open');
+  $('fleetShade').classList.remove('open');
+  ispOpen=true;
+  renderIspModal();
+  $('ispShade').classList.add('open');
+  armModalIdle();
+}
+function openFleet(sortMode,asc){
+  selectedId=null;ispOpen=false;
+  if(sortMode){fleetSort=sortMode;fleetAsc=typeof asc==='boolean'?asc:(sortMode!=='load')}
+  fleetEvExpanded=false;
+  hideAllScrubs();
+  $('srvShade').classList.remove('open');
+  $('ispShade').classList.remove('open');
+  fleetOpen=true;
+  renderFleetModal();
+  $('fleetShade').classList.add('open');
+  armModalIdle();
+}
+function stepDetail(dir){
+  const list=lastData?.servers||[];
+  if(!list.length||selectedId===null)return;
+  const idx=list.findIndex(x=>x.id===selectedId);
+  const next=list[(idx+dir+list.length)%list.length];
+  if(next){hideAllScrubs();selectedId=next.id;renderDetailModal();ensureServerLatency(next.id);armModalIdle()}
+}
+function applySubCmd(cmd){
+  cmd=String(cmd||'').trim();
+  if(!cmd)return;
+  if(cmd==='overview'){pendingSubCmd='';closeModals();return}
+  if(cmd==='isp'){pendingSubCmd='';openIspModal();return}
+  if(cmd==='fleet'){pendingSubCmd='';openFleet('expire',true);return}
+  if(cmd==='fleet_lat'){pendingSubCmd='';openFleet('lat',true);return}
+  if(cmd==='fleet_load'){pendingSubCmd='';openFleet('load',false);return}
+  if(cmd==='fleet_exp'){pendingSubCmd='';openFleet('expire',true);return}
+  const m=/^detail_(\d+)(?:_(cu|ct|cm))?$/.exec(cmd);
+  if(m){
+    const sid=Number(m[1]);
+    const isp=m[2]==='ct'?'电信':m[2]==='cm'?'移动':'联通';
+    if(Number.isInteger(sid)&&sid>0){
+      if(lastData?.servers?.some(x=>x.id===sid)){pendingSubCmd='';openDetail(sid,isp)}
+      else pendingSubCmd=cmd;
+    }
+  }
+}
+
+function flagSvg(cc){return '<svg viewBox="0 0 36 24">'+(Object.prototype.hasOwnProperty.call(FLAGS,cc)?FLAGS[cc]:'<rect width="36" height="24" fill="#263e63"/>')+'</svg>'}
+
+function create(s){
+  const cc=s.country||'';
+  const card=document.createElement('article');
+  card.className='card unknown';card.dataset.id=s.id;card.dataset.country=cc;
+  card.setAttribute('role','button');card.setAttribute('tabindex','0');
+  card.innerHTML='<div class="head"><span class="flag"></span><h2 class="name"></h2><span class="lamp"><i></i><span>连接中</span></span></div>'
+    +'<div class="billing"><span class="expire"></span><span class="plan-tag"></span></div>'
+    +'<div class="metrics">'+['cpu','mem','disk'].map((k,i)=>'<div class="metric" data-kind="'+k+'"><div class="metricline"><span class="label">'+['CPU','内存','存储'][i]+'</span><span class="amount"></span><strong>—</strong></div><div class="track"><span></span></div></div>').join('')+'</div>'
+    +'<div class="network"><div class="netstat up"><div class="netlabel"><span class="arrow">↑</span>上传</div><div class="netvalue">—</div><div class="transfer">—</div></div><div class="netstat down"><div class="netlabel"><span class="arrow">↓</span>下载</div><div class="netvalue">—</div><div class="transfer">—</div></div></div>';
+  card.addEventListener('click',()=>openDetail(s.id));
+  card.addEventListener('keydown',e=>{if(e.key==='Enter'||e.key===' '){e.preventDefault();openDetail(s.id)}});
+  const flag=card.querySelector('.flag'),name=card.querySelector('.name'),lampEl=card.querySelector('.lamp'),lampText=card.querySelector('.lamp span'),
+        exp=card.querySelector('.expire'),planEl=card.querySelector('.plan-tag'),netEl=card.querySelector('.network'),nets=card.querySelectorAll('.netstat'),metrics={};
+  for(const k of ['cpu','mem','disk']){
+    const m=card.querySelector('[data-kind='+k+']');
+    metrics[k]={val:m.querySelector('strong'),bar:m.querySelector('.track span'),amt:m.querySelector('.amount')};
+  }
+  text(name,s.name);flag.innerHTML=flagSvg(cc);serversEl.appendChild(card);
+  const rec={el:card,flag,name,lampEl,lampText,exp,planEl,netEl,metrics,upVal:nets[0].querySelector('.netvalue'),upTr:nets[0].querySelector('.transfer'),downVal:nets[1].querySelector('.netvalue'),downTr:nets[1].querySelector('.transfer'),quota:null};
+  cards.set(s.id,rec);return rec;
+}
+
+let graceShown=false;
+function render(d){
+  lastData=d;
+  const fresh=d.connected===true;
+  if(fresh)wakeGraceUntil=0;
+  else if(d.received_at===null){lastGoodTraffic=null;lastGoodTrafficAt=0;srvLatCache.clear();hist.clear();}
+  graceShown=!fresh&&d.age!==null&&monoNow()<wakeGraceUntil;
+  const umap=d.unicom_map||{},offMap=d.offline_since||{};
+  const usFallbackUni=(()=>{
+    const ordered=sortCarriers(d.carriers);
+    const u=ordered.find(c=>String(c.name||'').includes('联通'))||ordered[0];
+    return u&&!u.stale&&u.latest_ms!=null?{ms:u.latest_ms,status:u.status||'ok'}:null;
+  })();
+  const ids=new Set();
+  const offlineIds=[],critDiskIds=[],critMemIds=[],expCritIds=[],expWarnIds=[],highLoadIds=[];
+  let up=0,down=0,knownCount=0,onlineCount=0,minExpDays=null;
+  for(const s of d.servers||[]){
+    ids.add(s.id);
+    const cc=s.country||'';
+    const rec=cards.get(s.id)||create(s),card=rec.el;
+    const known=s.alive!==null&&s.alive!==undefined;
+    const live=fresh&&s.alive;
+    if(known){
+      knownCount++;
+      if(s.alive)onlineCount++;
+      else offlineIds.push(s.id);
+    }
+    text(rec.name,s.name);
+    if(card.dataset.country!==cc){card.dataset.country=cc;rec.flag.innerHTML=flagSvg(cc)}
+    card.classList.toggle('unknown',!fresh||!known);
+    card.classList.toggle('offline',fresh&&known&&!s.alive);
+    if(!fresh||!known){
+      rec.lampEl.className='lamp';
+      text(rec.lampText,'待更新');
+    }else if(!s.alive){
+      rec.lampEl.className='lamp bad';
+      const ts=Number(offMap[String(s.id)])||0;
+      text(rec.lampText,ts?('离线 '+shortOffDur(Date.now()/1000-ts)):'离线');
+    }else{
+      const u=umap[String(s.id)]||(s.id===quotaServerId?usFallbackUni:null);
+      if(u&&u.ms!=null){
+        rec.lampEl.className='lamp'+(u.status==='bad'?' bad':u.status==='warn'?' warn':'');
+        text(rec.lampText,'联通 '+Math.round(u.ms)+'ms');
+      }else{
+        rec.lampEl.className='lamp';
+        text(rec.lampText,'在线');
+      }
+    }
+
+    const diff=s.expires?Date.parse(s.expires)-Date.now():NaN,days=Number.isFinite(diff)?Math.ceil(diff/86400000):null,hasDays=days!==null;
+    text(rec.exp,hasDays?(diff>=0?'剩余 '+days+' 天':'已到期'):'');
+    rec.exp.classList.toggle('due',hasDays&&days<=30);
+    if(hasDays){
+      if(minExpDays===null||days<minExpDays)minExpDays=days;
+      if(days<=3)expCritIds.push(s.id);
+      else if(days<=14)expWarnIds.push(s.id);
+    }
+
+    const pb=planBadge(s);
+    text(rec.planEl,pb.txt);
+    rec.planEl.classList.toggle('prem',pb.prem);
+
+    const values={
+      cpu:Math.min(100,Math.max(0,s.cpu||0)),
+      mem:s.mem_total?Math.min(100,Math.max(0,100*(s.mem_used||0)/s.mem_total)):0,
+      disk:s.disk_total?Math.min(100,Math.max(0,100*(s.disk_used||0)/s.disk_total)):0
+    };
+    if(live){
+      if(values.disk>=92)critDiskIds.push(s.id);
+      if(values.mem>=92)critMemIds.push(s.id);
+      if(values.cpu>=85||values.mem>=85||values.disk>=85)highLoadIds.push(s.id);
+    }
+    for(const k of ['cpu','mem','disk']){
+      const m=rec.metrics[k],pct=known?values[k]:0;
+      text(m.val,known?pct.toFixed(1)+'%':'—');
+      const bar=m.bar,tf='scaleX('+(Math.min(100,Math.max(0,pct))/100).toFixed(3)+')',bg=pct>=92?'var(--bad)':pct>=85?'var(--warn)':'';
+      if(bar.style.transform!==tf)bar.style.transform=tf;
+      if(bar.style.background!==bg)bar.style.background=bg;
+      if(k==='cpu'){
+        const cSpec=[];
+        if(s.cpu_cores)cSpec.push(s.cpu_cores+'核');
+        if(known)cSpec.push('负载 '+Number(s.load_1||0).toFixed(2));
+        text(m.amt,cSpec.join(' · '));
+      }else if(k==='mem'){
+        const swpU=Number(s.swap_used)||0;
+        if(known&&s.mem_total&&swpU>=536870912){
+          const [uv]=size(s.mem_used),[tv,tu]=size(s.mem_total);
+          text(m.amt,`${uv}/${tv}${tu.replace('iB','')} · Swp ${(swpU/1073741824).toFixed(1)}G`);
+        }else{
+          text(m.amt,known&&s.mem_total?full(s.mem_used)+' / '+full(s.mem_total):'');
+        }
+        m.amt.classList.toggle('swp-hi',known&&swpU>=1073741824);
+      }else{
+        text(m.amt,known&&s.disk_total?full(s.disk_used)+' / '+full(s.disk_total):'');
+      }
+    }
+    if(fresh&&known){
+      speed(rec.upVal,live?s.net_out_speed:0);
+      speed(rec.downVal,live?s.net_in_speed:0);
+      recordSpeed(s.id,s.net_out_speed,s.net_in_speed,live);
+    }else{
+      clearSpeed(rec.upVal);clearSpeed(rec.downVal);
+    }
+    text(rec.upTr,'累计 '+full(s.net_out_transfer));
+    text(rec.downTr,'累计 '+full(s.net_in_transfer));
+    if(live){up+=s.net_out_speed||0;down+=s.net_in_speed||0}
+  }
+  for(const [id,rec] of cards){if(!ids.has(id)){rec.el.remove();cards.delete(id)}}
+  const trResolved=resolveTraffic(d);
+  renderQuota(trResolved);
+  renderExtraQuotas(d.extra_traffic);
+  renderCarriers(d.carriers);
+
+  const totalCount=ids.size;
+  const complete=knownCount===totalCount&&totalCount>0;
+  if(fresh&&knownCount>0){speed(upHdr,up);speed(downHdr,down)}else{clearSpeed(upHdr);clearSpeed(downHdr)}
+
+  let maxTraffic=null;
+  if(trResolved?.available&&trResolved.limit_bytes>0){
+    maxTraffic={sid:trResolved.server_id||quotaServerId,pct:100*trResolved.used_bytes/trResolved.limit_bytes};
+  }
+  for(const [sidStr,er] of Object.entries(d.extra_traffic||{})){
+    if(er?.available!==false&&er?.limit_bytes>0){
+      const p=100*er.used_bytes/er.limit_bytes;
+      if(!maxTraffic||p>maxTraffic.pct)maxTraffic={sid:Number(sidStr),pct:p};
+    }
+  }
+  const usSrv=(d.servers||[]).find(x=>x.id===quotaServerId);
+  const top3Carriers=(usSrv?.alive===false)?[]:sortCarriers(d.carriers).slice(0,3);
+  const badCarriers=top3Carriers.filter(c=>c.status==='bad');
+  const uniBad=badCarriers.some(c=>String(c.name||'').includes('联通'));
+
+  const pickTarget=(arr,sortKey)=>arr.length===1?{kind:'detail',id:arr[0]}:{kind:'fleet',sort:sortKey};
+  const offCount=knownCount-onlineCount;
+  connEl.classList.remove('stale','warn','bad','clickable');
+  alertAction=null;
+  if(!fresh){
+    connEl.classList.add('stale','clickable');
+    text(connTxt,(d.age===null||monoNow()<wakeGraceUntil)?'正在同步…':'连接中断');
+  }else if(offCount>0){
+    connEl.classList.add('bad','clickable');
+    alertAction=pickTarget(offlineIds,'alert');
+    text(connTxt,offCount+' 台离线');
+  }else if(!complete){
+    connEl.classList.add('stale','clickable');
+    text(connTxt,onlineCount+'/'+totalCount+' 同步中');
+  }else if(maxTraffic&&maxTraffic.pct>=95){
+    connEl.classList.add('bad','clickable');
+    alertAction={kind:'detail',id:maxTraffic.sid};
+    text(connTxt,`流量 ${Math.min(99,Math.round(maxTraffic.pct))}%`);
+  }else if(critDiskIds.length>0){
+    connEl.classList.add('bad','clickable');
+    alertAction=pickTarget(critDiskIds,'alert');
+    text(connTxt,onlineCount+'/'+totalCount+' · 磁盘告警');
+  }else if(critMemIds.length>0){
+    connEl.classList.add('bad','clickable');
+    alertAction=pickTarget(critMemIds,'alert');
+    text(connTxt,onlineCount+'/'+totalCount+' · 内存告警');
+  }else if(expCritIds.length>0){
+    connEl.classList.add('bad','clickable');
+    alertAction=pickTarget(expCritIds,'expire');
+    text(connTxt,minExpDays<0?'节点已到期':`剩 ${minExpDays} 天到期`);
+  }else if(top3Carriers.length>=3&&badCarriers.length>=3){
+    connEl.classList.add('bad','clickable');
+    alertAction={kind:'isp'};
+    text(connTxt,'主节点三网故障');
+  }else if(maxTraffic&&maxTraffic.pct>=85){
+    connEl.classList.add('warn','clickable');
+    alertAction={kind:'detail',id:maxTraffic.sid};
+    text(connTxt,`流量 ${Math.round(maxTraffic.pct)}%`);
+  }else if(expWarnIds.length>0){
+    connEl.classList.add('warn','clickable');
+    alertAction=pickTarget(expWarnIds,'expire');
+    text(connTxt,`剩 ${minExpDays} 天到期`);
+  }else if(badCarriers.length>=2||uniBad){
+    connEl.classList.add('warn','clickable');
+    alertAction={kind:'isp'};
+    text(connTxt,onlineCount+'/'+totalCount+' · 线路波动');
+  }else if(highLoadIds.length>0){
+    connEl.classList.add('warn','clickable');
+    alertAction=pickTarget(highLoadIds,'load');
+    text(connTxt,onlineCount+'/'+totalCount+' · 高负载');
+  }else{
+    connEl.classList.add('clickable');
+    text(connTxt,onlineCount+'/'+totalCount+' 在线');
+  }
+
+  if(pendingSubCmd)applySubCmd(pendingSubCmd);
+  if(selectedId!==null)renderDetailModal();
+  if(ispOpen)renderIspModal();
+  if(fleetOpen)renderFleetModal();
+}
+
+connEl.addEventListener('click',()=>{
+  if(alertAction?.kind==='detail')openDetail(alertAction.id);
+  else if(alertAction?.kind==='isp')openIspModal();
+  else if(alertAction?.kind==='fleet')openFleet(alertAction.sort);
+  else openFleet('expire',true);
+});
+carrierBtn.addEventListener('click',()=>openIspModal());
+for(const b of $('dmUniTabs').querySelectorAll('.w-tab')){
+  b.onclick=()=>{detailWin=b.dataset.w;hideScrub($('dmUniWrap'));if(selectedId!==null)renderDetailUnicom(selectedId);armModalIdle()};
+}
+for(const b of $('ispWinTabs').querySelectorAll('.w-tab')){
+  b.onclick=()=>{ispWin=b.dataset.w;hideAllScrubs();renderIspModal();armModalIdle()};
+}
+$('dmClose').onclick=closeModals;
+$('ispClose').onclick=closeModals;
+$('flClose').onclick=closeModals;
+$('dmPrev').onclick=()=>stepDetail(-1);
+$('dmNext').onclick=()=>stepDetail(1);
+$('srvShade').addEventListener('click',e=>{if(e.target===$('srvShade'))closeModals()});
+$('ispShade').addEventListener('click',e=>{if(e.target===$('ispShade'))closeModals()});
+$('fleetShade').addEventListener('click',e=>{if(e.target===$('fleetShade'))closeModals()});
+
+/* Horizontal touch swipe inside #srvModal to switch Prev / Next server */
+let swX=0,swY=0,swOk=false;
+$('srvModal').addEventListener('touchstart',e=>{
+  if(e.touches.length!==1||e.target.closest('button,.chart-wrap')){swOk=false;return}
+  swOk=true;swX=e.touches[0].clientX;swY=e.touches[0].clientY;
+},{passive:true});
+$('srvModal').addEventListener('touchend',e=>{
+  if(!swOk||selectedId===null||!e.changedTouches.length)return;
+  swOk=false;
+  const dx=e.changedTouches[0].clientX-swX,dy=e.changedTouches[0].clientY-swY;
+  if(Math.abs(dx)>55&&Math.abs(dx)>Math.abs(dy)*1.6)stepDetail(dx<0?1:-1);
+},{passive:true});
+
+document.addEventListener('keydown',e=>{
+  if(e.key==='Escape')closeModals();
+  else if(selectedId!==null&&e.key==='ArrowLeft')stepDetail(-1);
+  else if(selectedId!==null&&e.key==='ArrowRight')stepDetail(1);
+});
+for(const ev of ['pointerdown','touchstart','keydown','wheel']){
+  addEventListener(ev,()=>{
+    lastUserAct=monoNow();
+    if(selectedId!==null||ispOpen||fleetOpen)armModalIdle();
+  },{capture:true,passive:true});
+}
+
+const isPrewarm=window.name==='ts-monitor-prewarm';
+const POLL_MS=1500;
+let busy=false,request=null,hiddenController=null,pendingTick=false,subVisible=!isPrewarm,pollTimer=0,wakeTickT=0,fastRetry=0,fastRetryT=0,lastNeedFast=false;
+if(isPrewarm){try{window.name=''}catch(e){}}else if(window.parent===window){document.body.classList.add('cold-enter');setTimeout(()=>document.body.classList.remove('cold-enter'),500)}
+const pageActive=()=>subVisible&&!document.hidden;
+
+function syncAutoHomeTimer(){
+  clearInterval(autoHomeTimer);autoHomeTimer=0;
+  if(!pageActive())return;
+  autoHomeTimer=setInterval(()=>{
+    if(!pageActive()||pinned)return;
+    if(monoNow()-lastUserAct>=AUTO_HOME_MS){
+      closeModals();
+      if(window.parent&&window.parent!==window){
+        try{window.parent.postMessage({ts:'sub',cmd:'close'},subParentOrigin)}catch(e){}
+      }
+    }
+  },5000);
+}
+
+function disconnected(){
+  stateEtag='';lastNeedFast=true;
+  renderQuota(resolveTraffic({traffic:{server_id:quotaServerId,available:false}}));
+  connEl.classList.remove('warn','bad');connEl.classList.add('stale','clickable');
+  text(connTxt,monoNow()<wakeGraceUntil?'正在同步…':'连接中断');
+  for(const rec of cards.values()){rec.el.classList.add('unknown');rec.el.classList.remove('offline');rec.lampEl.className='lamp';text(rec.lampText,'待更新');clearSpeed(rec.upVal);clearSpeed(rec.downVal)}
+  clearSpeed(upHdr);clearSpeed(downHdr);
+}
+async function hydrateSeed(){
+  if(cards.size>0)return;
+  try{
+    const r=await fetch('/assets/servers.json');if(!r.ok||cards.size>0)return;
+    const seed=await r.json();
+    if(Array.isArray(seed)&&cards.size===0){
+      const seedExtra={};
+      for(const s of seed){
+        const limB=parseTrafficLimitBytes(s.traffic_limit);
+        if(s.id!==quotaServerId&&limB>0&&s.traffic_reset_day){
+          seedExtra[String(s.id)]={available:false,server_id:s.id,limit_bytes:limB,reset_day:s.traffic_reset_day};
+        }
+      }
+      render({connected:false,age:null,servers:seed.map(s=>Object.assign({},s,{alive:null})),traffic:{server_id:quotaServerId,available:false},extra_traffic:seedExtra,carriers:[],speed_hist:{},unicom_map:{}});
+    }
+  }catch(e){}
+}
+async function tick(){
+  if(!pageActive())return;
+  if(busy){pendingTick=true;return}
+  busy=true;pendingTick=false;
+  const controller=new AbortController();request=controller;
+  const deadline=setTimeout(()=>controller.abort(),8000);
+  try{
+    const r=await fetch('/api/state',{cache:'no-store',headers:stateEtag?{'If-None-Match':stateEtag}:undefined,signal:controller.signal});
+    if(r.status===304){
+      if(graceShown&&monoNow()>=wakeGraceUntil&&lastData)render(lastData);
+      if(lastNeedFast&&pageActive()&&fastRetry<4){
+        fastRetry++;clearTimeout(fastRetryT);
+        fastRetryT=setTimeout(()=>{fastRetryT=0;if(pageActive())tick()},1200);
+      }
+      return;
+    }
+    if(!r.ok)throw new Error();
+    const data=await r.json();
+    if(!data||!Array.isArray(data.servers))throw new Error();
+    const et=r.headers.get('ETag');if(et)stateEtag=et;
+    render(data);
+    const needFast=(!data.connected||(data.traffic&&!data.traffic.available));
+    lastNeedFast=!!needFast;
+    if(needFast&&pageActive()&&fastRetry<4){
+      fastRetry++;clearTimeout(fastRetryT);
+      fastRetryT=setTimeout(()=>{fastRetryT=0;if(pageActive())tick()},1200);
+    }else if(!needFast){
+      fastRetry=0;clearTimeout(fastRetryT);fastRetryT=0;
+    }
+  }catch(e){
+    if(pageActive()&&hiddenController!==controller)disconnected();
+  }finally{
+    clearTimeout(deadline);
+    if(request===controller)request=null;
+    if(hiddenController===controller)hiddenController=null;
+    busy=false;
+    if(pendingTick&&pageActive()){pendingTick=false;tick()}
+  }
+}
+
+$('home').href=location.protocol+'//'+(location.hostname||'127.0.0.1')+':'+(location.port==='18092'?'18090':'8090')+'/';
+const clockEl=$('hdrClock');let clockT=0;
+const tickClock=()=>{
+  const d=new Date();
+  text(clockEl,String(d.getHours()).padStart(2,'0')+':'+String(d.getMinutes()).padStart(2,'0'));
+  clearTimeout(clockT);clockT=0;
+  if(pageActive())clockT=setTimeout(tickClock,60000-d.getSeconds()*1000-d.getMilliseconds()+50);
+};
+function stopPoll(){clearInterval(pollTimer);pollTimer=0;clearTimeout(wakeTickT);wakeTickT=0;clearTimeout(fastRetryT);fastRetryT=0;clearInterval(autoHomeTimer);autoHomeTimer=0;clearTimeout(clockT);clockT=0}
+function startPoll(deferFirst){
+  stopPoll();fastRetry=0;lastUserAct=monoNow();wakeGraceUntil=monoNow()+5500;
+  tickClock();
+  syncAutoHomeTimer();
+  if(deferFirst)wakeTickT=setTimeout(()=>{wakeTickT=0;if(pageActive())tick()},120);else tick();
+  pollTimer=setInterval(tick,POLL_MS);
+}
+function syncVis(fromParent){
+  const act=pageActive();
+  document.body.classList.toggle('motion-paused',!act);
+  if(!act){
+    stopPoll();closeModals();
+    if(request){hiddenController=request;request.abort()}
+  }else{
+    startPoll(!!fromParent);
+  }
+}
+window.addEventListener('message',e=>{
+  if((e.origin==='http://127.0.0.1:8090'||e.origin==='http://localhost:8090')&&window.parent!==window&&e.source===window.parent&&e.data?.ts==='sub'){
+    if(typeof e.data.visible==='boolean'){
+      const next=e.data.visible;
+      if(!(next===subVisible&&document.body.classList.contains('motion-paused')===!pageActive())){
+        subVisible=next;syncVis(true);
+      }
+    }
+    if(typeof e.data.cmd==='string'&&e.data.cmd){
+      lastUserAct=monoNow();
+      applySubCmd(e.data.cmd);
+    }
+  }
+});
+document.addEventListener('visibilitychange',()=>syncVis(false));
+document.body.classList.toggle('motion-paused',!pageActive());
+hydrateSeed();
+tickClock();
+if(pageActive())startPoll(false);
+
+window.addEventListener('message',e=>{
+  if((e.origin!=='http://127.0.0.1:8090'&&e.origin!=='http://localhost:8090')||e.source!==window.parent)return;
+  const t=e.data&&e.data.ts==='sub'?e.data.theme:'';
+  if(t!=='light'&&t!=='dark')return;
+  try{localStorage.setItem('ts.theme',t)}catch(err){}
+  if(t==='light')document.documentElement.setAttribute('data-theme','light');
+  else document.documentElement.removeAttribute('data-theme');
+});
+})();
+</script><script src="/assets/home_overlay.js"></script><script>
+/* ===== 2026-11-20 Claude 竖版：机器竖起来时，外层（8090）把整个页面框转 90° 成 800×1280 竖屏。
+   页面里的坐标、点按都正常，只有浏览器自带的手指滑动还按横屏方向走，所以竖屏时由这里自己滑（带惯性）。
+   只拦超过 10px 的拖动：轻点时手指的小抖动不拦，否则 WebKitGTK 会把这一下当成拖动，点不出按钮。 ===== */
+(() => {
+  if (window.__tsPortraitShim) return;
+  window.__tsPortraitShim = true;
+  const framed = window.parent !== window;
+  const pq = matchMedia('(orientation: portrait)');
+  const rotated = () => framed && pq.matches;
+  const syncCls = () => document.documentElement.classList.toggle('ts-rot', rotated());
+  syncCls();
+  if (pq.addEventListener) pq.addEventListener('change', syncCls); else if (pq.addListener) pq.addListener(syncCls);
+  addEventListener('resize', syncCls);
+
+  // 手指按下 / 松开告诉外层：按着屏幕时机器转了也先不转，松手再转（拖滑条、滑列表时不会突然换方向）
+  if (framed) {
+    const PO = (() => { try { const o = new URL(document.referrer).origin; if (/^http:\/\/(127\.0\.0\.1|localhost):8090$/.test(o)) return o; } catch (e) {} return 'http://127.0.0.1:8090'; })();
+    let down = 0, downT = 0;
+    const tell = on => { try { window.parent.postMessage({ ts: 'touch', on }, PO); } catch (e) {} };
+    const clearDown = () => { if (downT) { clearTimeout(downT); downT = 0; } if (down) { down = 0; tell(false); } };
+    addEventListener('pointerdown', e => {
+      if (e.isPrimary !== false) {
+        down = 1;
+        if (downT) clearTimeout(downT);
+        downT = setTimeout(clearDown, 6000);
+        tell(true);
+      }
+    }, true);
+    for (const ev of ['pointerup', 'pointercancel']) addEventListener(ev, e => { if (e.isPrimary !== false) clearDown(); }, true);
+    addEventListener('blur', clearDown);
+    document.addEventListener('visibilitychange', () => { if (document.hidden) clearDown(); });
+    addEventListener('message', e => { if (e.data && (e.data.visible === false || e.data.vis === false)) clearDown(); });
+  }
+  const SKIP = 'input, textarea, select, canvas, [data-own-drag], .chart-wrap';
+  const DRAG_GUARD = 'input[type="range"], .chart-wrap';
+  function findScroller(t, axis) {
+    for (let n = t; n && n.nodeType === 1; n = n.parentElement) {
+      if (n === document.body || n === document.documentElement) {
+        const se = document.scrollingElement || document.documentElement;
+        const canY = se.scrollHeight > se.clientHeight + 2 && getComputedStyle(document.body).overflowY !== 'hidden' && getComputedStyle(document.documentElement).overflowY !== 'hidden';
+        if (axis === 'y') return canY ? { el: se, canY: true, canX: false } : null;
+        if (axis === 'x') return null;
+        return canY ? { el: se, canY: true, canX: false } : null;
+      }
+      const cs = getComputedStyle(n);
+      const canY = (cs.overflowY === 'auto' || cs.overflowY === 'scroll') && n.scrollHeight > n.clientHeight + 2;
+      const canX = (cs.overflowX === 'auto' || cs.overflowX === 'scroll') && n.scrollWidth > n.clientWidth + 2;
+      if (axis === 'y') { if (canY) return { el: n, canY, canX }; }
+      else if (axis === 'x') { if (canX) return { el: n, canY, canX }; }
+      else if (canY || canX) return { el: n, canY, canX };
+    }
+    return null;
+  }
+  let ps = null, psRaf = 0, momRaf = 0, clickBlockUntil = 0, t0 = null;
+  const flushScroll = p => {
+    if (!p || !p.active || p.goal == null) return;
+    if (p.axis === 'y') p.el.scrollTop = p.goal; else p.el.scrollLeft = p.goal;
+    p.goal = null;
+  };
+  const stopMomentum = () => {
+    if (psRaf) { cancelAnimationFrame(psRaf); psRaf = 0; }
+    if (momRaf) { cancelAnimationFrame(momRaf); momRaf = 0; }
+  };
+  window.tsStopPortraitScroll = stopMomentum;
+  addEventListener('pointerdown', e => {
+    stopMomentum();
+    clickBlockUntil = 0;
+    ps = null;
+    if (!rotated() || (e.button != null && e.button > 0)) return;
+    const t = e.target;
+    if (!t || !t.closest || t.closest(SKIP)) return;
+    const sc = findScroller(t, '');
+    if (!sc) return;
+    ps = { startEl: t, el: sc.el, canX: sc.canX, canY: sc.canY, id: e.pointerId, x0: e.clientX, y0: e.clientY,
+      lx: e.clientX, ly: e.clientY, lt: performance.now(), st0: sc.el.scrollTop, sl0: sc.el.scrollLeft, active: false, axis: '', v: 0, goal: null };
+  }, true);
+  addEventListener('pointermove', e => {
+    const p = ps;
+    if (!p || e.pointerId !== p.id) return;
+    const dx = e.clientX - p.x0, dy = e.clientY - p.y0;
+    if (!p.active) {
+      if (Math.max(Math.abs(dx), Math.abs(dy)) < 10) return;
+      const vert = Math.abs(dy) >= Math.abs(dx);
+      const wantAxis = vert ? 'y' : 'x';
+      if ((vert && !p.canY) || (!vert && !p.canX)) {
+        const alt = findScroller(p.startEl, wantAxis);
+        if (!alt) { ps = null; return; }
+        p.el = alt.el; p.canX = alt.canX; p.canY = alt.canY;
+      }
+      p.axis = wantAxis;
+      p.active = true;
+      p.x0 = e.clientX; p.y0 = e.clientY; p.st0 = p.el.scrollTop; p.sl0 = p.el.scrollLeft;
+      return;
+    }
+    p.goal = p.axis === 'y' ? (p.st0 - (e.clientY - p.y0)) : (p.sl0 - (e.clientX - p.x0));
+    if (!psRaf) {
+      psRaf = requestAnimationFrame(() => { psRaf = 0; if (ps === p) flushScroll(p); });
+    }
+    const now = performance.now(), dt = now - p.lt;
+    if (dt > 0) {
+      const v = (p.axis === 'y' ? e.clientY - p.ly : e.clientX - p.lx) / dt;
+      p.v = dt > 80 ? v : p.v * 0.4 + v * 0.6;
+    }
+    p.lx = e.clientX; p.ly = e.clientY; p.lt = now;
+    if (e.cancelable) e.preventDefault();
+  }, { capture: true, passive: false });
+  function endScroll(e, cancelled) {
+    const p = ps;
+    if (!p || e.pointerId !== p.id) return;
+    ps = null;
+    if (psRaf) { cancelAnimationFrame(psRaf); psRaf = 0; }
+    if (!p.active) return;
+    flushScroll(p);
+    clickBlockUntil = performance.now() + 380;                      // 刚滑完的这一下不算点按钮
+    if (cancelled || performance.now() - p.lt > 90) return;
+    let v = Math.max(-4, Math.min(4, p.v || 0));
+    if (Math.abs(v) < 0.3) return;
+    const el = p.el, axis = p.axis;
+    let last = performance.now();
+    const step = now => {
+      const dt = Math.min(34, now - last); last = now;
+      v *= Math.pow(0.935, dt / 16);
+      if (axis === 'y') el.scrollTop -= v * dt; else el.scrollLeft -= v * dt;
+      momRaf = Math.abs(v) > 0.04 ? requestAnimationFrame(step) : 0;
+    };
+    momRaf = requestAnimationFrame(step);
+  }
+  addEventListener('pointerup', e => endScroll(e, false), true);
+  addEventListener('pointercancel', e => endScroll(e, true), true);
+  addEventListener('click', e => {
+    if (clickBlockUntil && performance.now() < clickBlockUntil) { e.stopPropagation(); e.preventDefault(); }
+    clickBlockUntil = 0;
+  }, true);
+  /* 滑条（音量、亮度等）：竖屏时手指按住直接拖，值跟着手指走（页面自己的 input / change 照常收到） */
+  let rng = null, rngRaf = 0;
+  function setRange(r, x) {
+    if (!r || !r.isConnected || r.disabled) return;
+    const b = (rng && rng.el === r && rng.rect) ? rng.rect : r.getBoundingClientRect();
+    if (!b || !b.width) return;
+    const min = r.min === '' ? 0 : +r.min, max = r.max === '' ? 100 : +r.max, step = +r.step || 1;
+    const f = Math.max(0, Math.min(1, (x - b.left - 10) / Math.max(1, b.width - 20)));
+    const v = Math.min(max, Math.max(min, Math.round((min + f * (max - min)) / step) * step));
+    if (String(v) !== r.value) { r.value = String(v); r.dispatchEvent(new Event('input', { bubbles: true })); }
+  }
+  addEventListener('pointerdown', e => {
+    if (rngRaf) { cancelAnimationFrame(rngRaf); rngRaf = 0; }
+    rng = null;
+    if (!rotated() || (e.button != null && e.button > 0)) return;
+    const r = e.target && e.target.closest && e.target.closest('input[type="range"]');
+    if (!r || r.disabled) return;
+    rng = { el: r, id: e.pointerId, moved: false, rect: r.getBoundingClientRect(), lastX: e.clientX };
+    try { r.setPointerCapture(e.pointerId); } catch (_) {}
+    setRange(r, e.clientX);
+    if (e.cancelable) e.preventDefault();
+  }, { capture: true, passive: false });
+  addEventListener('pointermove', e => {
+    if (!rng || e.pointerId !== rng.id) return;
+    rng.moved = true;
+    rng.lastX = e.clientX;
+    if (!rngRaf) {
+      const cur = rng;
+      rngRaf = requestAnimationFrame(() => { rngRaf = 0; if (rng === cur) setRange(cur.el, cur.lastX); });
+    }
+    if (e.cancelable) e.preventDefault();
+  }, { capture: true, passive: false });
+  const endRange = e => {
+    if (!rng || e.pointerId !== rng.id) return;
+    if (rngRaf) { cancelAnimationFrame(rngRaf); rngRaf = 0; }
+    const r = rng.el, lx = rng.lastX; rng = null;
+    try { r.releasePointerCapture(e.pointerId); } catch (_) {}
+    if (r && r.isConnected && !r.disabled) {
+      setRange(r, lx);
+      r.dispatchEvent(new Event('change', { bubbles: true }));
+    }
+  };
+  addEventListener('pointerup', endRange, true);
+  addEventListener('pointercancel', endRange, true);
+  addEventListener('lostpointercapture', endRange, true);
+  addEventListener('touchstart', e => {
+    const t = e.touches && e.touches[0];
+    if (!rotated() || !t || e.touches.length !== 1) { t0 = null; return; }
+    const el = e.target;
+    const isRange = !!(el && el.closest && el.closest(DRAG_GUARD));
+    const canPan = isRange || !!ps;
+    t0 = canPan ? { x: t.clientX, y: t.clientY, range: isRange } : null;
+  }, { capture: true, passive: true });
+  addEventListener('touchmove', e => {
+    if (!rotated() || !e.cancelable) return;
+    if ((ps && ps.active) || (t0 && t0.range)) { e.preventDefault(); return; }   // 滑条由上面接管，不让浏览器拿去滚动
+    const t = e.touches && e.touches[0];
+    if (t0 && t && Math.max(Math.abs(t.clientX - t0.x), Math.abs(t.clientY - t0.y)) >= 10) e.preventDefault();
+  }, { capture: true, passive: false });
+})();
+</script>
+</body></html>

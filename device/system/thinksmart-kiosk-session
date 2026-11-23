@@ -1,0 +1,39 @@
+#!/bin/sh
+# The ThinkSmart kiosk session (thinksmart-kiosk.service on tty1): Weston kiosk-shell running the kiosk browser.
+# (cage 0.1.5 from Ubuntu 24.04 crashes on this panel in wlr_scene_output_layout_add_output.)
+ROTATION=normal
+OUTPUT=DSI-1
+if [ -r /etc/thinksmart-kiosk.conf ]; then
+    val_rot=$(sed -n 's/^ROTATION=\([^#[:space:]]*\).*/\1/p' /etc/thinksmart-kiosk.conf | tail -n 1 | tr -d '"\047')
+    [ -n "$val_rot" ] && ROTATION="$val_rot"
+    val_out=$(sed -n 's/^OUTPUT=\([^#[:space:]]*\).*/\1/p' /etc/thinksmart-kiosk.conf | tail -n 1 | tr -d '"\047')
+    case "$val_out" in
+        [A-Za-z0-9_-]*) OUTPUT="$val_out" ;;
+    esac
+fi
+
+case "${ROTATION:-normal}" in
+    90|180|270) TRANSFORM="rotate-$ROTATION" ;;
+    *)          TRANSFORM=normal ;;
+esac
+
+CFG="${XDG_RUNTIME_DIR:-/tmp}/thinksmart-weston.ini"
+# idle-time=0: Weston must never blank the panel itself (DRM Off is unrecoverable here);
+# idle-blanker dims the backlight instead.
+cat > "${CFG}.tmp.$$" <<EOF
+[core]
+shell=kiosk-shell.so
+idle-time=0
+require-input=false
+
+[output]
+name=${OUTPUT:-DSI-1}
+transform=$TRANSFORM
+
+[autolaunch]
+path=/usr/local/bin/thinksmart-kiosk-app
+watch=true
+EOF
+mv -f "${CFG}.tmp.$$" "$CFG"
+
+exec weston --config="$CFG"

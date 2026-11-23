@@ -1,0 +1,10 @@
+# ThinkSmart kiosk settings. Change with: sudo kiosk-mode url <URL> / sudo kiosk-mode rotation <value>
+# IMPORTANT: URL MUST remain http://127.0.0.1:8090/ (the XiaoZhi host page).
+# Do NOT change URL to :8095! Desktop Home (:8095), QQ Music (:8091), and Server Monitor (:8092)
+# are injected over :8090 as full-screen iframes by home_overlay.js so XiaoZhi stays alive underneath.
+URL="http://127.0.0.1:8090/"
+# Panel is natively 800x1280 portrait. Rotation: normal, 90, 180, 270
+ROTATION=90
+OUTPUT=DSI-1
+GPU="on-demand"
+WEBKIT_ENV="FD_MESA_DEBUG=sysmem WEBKIT_FORCE_VBLANK_TIMER=1 WEBKIT_SKIA_ENABLE_CPU_RENDERING=1"

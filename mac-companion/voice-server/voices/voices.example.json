@@ -1,0 +1,72 @@
+{
+  "xiaohe": {
+    "name": "湾湾小何 (本地克隆)",
+    "variants": [
+      {
+        "style": "calm",
+        "audio": "xiaohe_calm.wav",
+        "text": "今天整体的情况大概就是这样，你可以先参考看看。"
+      },
+      {
+        "style": "flow",
+        "audio": "xiaohe_flow1.wav",
+        "text": "另外还有一点也挺重要的，我顺便跟你说一下。"
+      },
+      {
+        "style": "warm",
+        "audio": "xiaohe_warm.wav",
+        "text": "平时累了的话就多休息一会儿，不用太着急。"
+      },
+      {
+        "style": "question",
+        "audio": "xiaohe_ref.wav",
+        "text": "嗨，你好呀！我是湾湾小何，今天过得开心吗？"
+      }
+    ]
+  },
+  "vivi": {
+    "name": "Vivi (本地克隆)",
+    "variants": [
+      {
+        "style": "calm",
+        "audio": "vivi_calm.wav",
+        "text": "今天整体的情况大概就是这样，你可以先参考看看。"
+      },
+      {
+        "style": "flow",
+        "audio": "vivi_flow1.wav",
+        "text": "另外还有一点也挺重要的，我顺便跟你说一下。"
+      },
+      {
+        "style": "warm",
+        "audio": "vivi_warm.wav",
+        "text": "平时累了的话就多休息一会儿，不用太着急。"
+      },
+      {
+        "style": "question",
+        "audio": "vivi_ref.wav",
+        "text": "你好呀，我是你的语音小助手，很高兴认识你哦！"
+      }
+    ]
+  },
+  "taozi": {
+    "name": "甜美桃子 (本地克隆)",
+    "variants": [
+      {
+        "style": "default",
+        "audio": "taozi_ref.wav",
+        "text": "你好呀，我是甜美桃子，今天想听什么好听的故事呢？"
+      }
+    ]
+  },
+  "mengwa": {
+    "name": "奶气萌娃 (本地克隆)",
+    "variants": [
+      {
+        "style": "default",
+        "audio": "mengwa_ref.wav",
+        "text": "哥哥姐姐你好呀，我们今天一起来玩游戏好不好呀？"
+      }
+    ]
+  }
+}

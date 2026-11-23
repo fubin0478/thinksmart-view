@@ -1,0 +1,559 @@
+diff --git a/main/xiaozhi-server/core/providers/tts/index_stream.py b/main/xiaozhi-server/core/providers/tts/index_stream.py
+index 49af09c..c3da5f2 100644
+--- a/main/xiaozhi-server/core/providers/tts/index_stream.py
++++ b/main/xiaozhi-server/core/providers/tts/index_stream.py
+@@ -19,11 +19,10 @@ class TTSProvider(TTSProviderBase):
+     def __init__(self, config, delete_audio_file):
+         super().__init__(config, delete_audio_file)
+         self.interface_type = InterfaceType.SINGLE_STREAM
+-        self.voice = config.get("voice", "xiao_he")
+         if config.get("private_voice"):
+             self.voice = config.get("private_voice")
+         else:
+-            self.voice = config.get("voice", "xiao_he")
++            self.voice = config.get("voice", "xiaohe")
+         self.api_url = config.get("api_url", "http://127.0.0.1:8010/tts")
+         self.audio_format = "pcm"
+         self.before_stop_play_files = []
+@@ -41,11 +40,20 @@ class TTSProvider(TTSProviderBase):
+         while not self.conn.stop_event.is_set():
+             try:
+                 message = self.tts_text_queue.get(timeout=1)
++                if self.conn.client_abort:
++                    logger.bind(tag=TAG).info("收到打断信息，终止TTS文本处理线程")
++                    continue
++                if message.sentence_id != self.conn.sentence_id:
++                    continue
++
+                 if message.sentence_type == SentenceType.FIRST:
+                     # 初始化参数
++                    self.current_sentence_id = message.sentence_id
+                     self.tts_stop_request = False
+                     self.processed_chars = 0
+                     self.tts_text_buff = []
++                    self.is_first_sentence = True
++                    self.tts_audio_first_sentence = True
+                     self.before_stop_play_files.clear()
+                 elif ContentType.TEXT == message.content_type:
+                     self.tts_text_buff.append(message.content_detail)
+@@ -55,14 +63,16 @@ class TTSProvider(TTSProviderBase):
+ 
+                 elif ContentType.FILE == message.content_type:
+                     logger.bind(tag=TAG).info(
+-                        f"添加音频文件到待播放列表: {message.content_file}"
++                        f"添加到音频文件列表: {message.content_file}"
+                     )
+                     if message.content_file and os.path.exists(message.content_file):
+-                        # 先处理文件音频数据
+-                        self._process_audio_file_stream(message.content_file, callback=lambda audio_data: self.handle_audio_file(audio_data, message.content_detail))
++                        self._process_audio_file_stream(
++                            message.content_file,
++                            callback=lambda audio_data: self.handle_audio_file(audio_data, message.content_detail)
++                        )
+ 
+                 if message.sentence_type == SentenceType.LAST:
+-                    # 处理剩余的文本
++                    # 处理剩余文本
+                     self._process_remaining_text_stream(True)
+ 
+             except queue.Empty:
+@@ -120,6 +130,7 @@ class TTSProvider(TTSProviderBase):
+     async def text_to_speak(self, text, is_last):
+         """流式处理TTS音频，每句只推送一次音频列表"""
+         payload = {"text": text, "character": self.voice}
++        sid = getattr(self, "current_sentence_id", None)
+ 
+         frame_bytes = int(
+             self.opus_encoder.sample_rate
+@@ -129,28 +140,33 @@ class TTSProvider(TTSProviderBase):
+             * 2
+         )  # 16-bit = 2 bytes
+         try:
+-            async with aiohttp.ClientSession() as session:
+-                async with session.post(
+-                    self.api_url, json=payload, timeout=self.tts_timeout
+-                ) as resp:
+-
++            timeout = aiohttp.ClientTimeout(total=self.tts_timeout)
++            async with aiohttp.ClientSession(timeout=timeout, trust_env=False) as session:
++                async with session.post(self.api_url, json=payload) as resp:
+                     if resp.status != 200:
+                         logger.bind(tag=TAG).error(
+                             f"TTS请求失败: {resp.status}, {await resp.text()}"
+                         )
+-                        self.tts_audio_queue.put((SentenceType.LAST, [], None))
++                        self.tts_audio_queue.put((SentenceType.LAST, [], None, sid))
+                         return
+ 
+                     self.pcm_buffer.clear()
+-                    self.tts_audio_queue.put((SentenceType.FIRST, [], text))
++                    self.tts_audio_queue.put((SentenceType.FIRST, [], text, sid))
++                    prebuffer_bytes = frame_bytes * 5  # 首包攒满5帧(300ms)再突发推流，消除公网TCP抖动断音
++                    prebuffered = False
+ 
+                     # 处理音频流数据
+                     async for chunk in resp.content.iter_any():
++                        if self.conn and self.conn.client_abort:
++                            break
+                         data = chunk[0] if isinstance(chunk, (list, tuple)) else chunk
+                         if not data:
+                             continue
+ 
+                         self.pcm_buffer.extend(data)
++                        if not prebuffered and len(self.pcm_buffer) < prebuffer_bytes:
++                            continue
++                        prebuffered = True
+ 
+                         while len(self.pcm_buffer) >= frame_bytes:
+                             frame = bytes(self.pcm_buffer[:frame_bytes])
+@@ -162,8 +178,19 @@ class TTSProvider(TTSProviderBase):
+                                 callback=self.handle_opus
+                             )
+ 
++                    # 若整句不足5帧，在流结束时一次性编码全部完整帧
++                    if not (self.conn and self.conn.client_abort):
++                        while len(self.pcm_buffer) >= frame_bytes:
++                            frame = bytes(self.pcm_buffer[:frame_bytes])
++                            del self.pcm_buffer[:frame_bytes]
++                            self.opus_encoder.encode_pcm_to_opus_stream(
++                                frame,
++                                end_of_stream=False,
++                                callback=self.handle_opus
++                            )
++
+                     # flush 剩余不足一帧的数据
+-                    if self.pcm_buffer:
++                    if self.pcm_buffer and not (self.conn and self.conn.client_abort):
+                         self.opus_encoder.encode_pcm_to_opus_stream(
+                             bytes(self.pcm_buffer),
+                             end_of_stream=True,
+@@ -177,7 +204,7 @@ class TTSProvider(TTSProviderBase):
+ 
+         except Exception as e:
+             logger.bind(tag=TAG).error(f"TTS请求异常: {e}")
+-            self.tts_audio_queue.put((SentenceType.LAST, [], None))
++            self.tts_audio_queue.put((SentenceType.LAST, [], None, sid))
+ 
+     def audio_to_pcm_data_stream(
+         self, audio_file_path, callback=None
+@@ -189,9 +216,9 @@ class TTSProvider(TTSProviderBase):
+     def audio_to_opus_data_stream(
+         self, audio_file_path, callback=None
+     ):
+-        """音频文件转换为Opus编码，使用24kHz采样率和自己的编码器"""
++        """音频文件转换为Opus编码，使用24kHz采样率和独立编码器避免并发冲突"""
+         from core.utils.util import audio_to_data_stream
+-        return audio_to_data_stream(audio_file_path, is_opus=True, callback=callback, sample_rate=24000, opus_encoder=self.opus_encoder)
++        return audio_to_data_stream(audio_file_path, is_opus=True, callback=callback, sample_rate=24000, opus_encoder=None)
+ 
+     async def close(self):
+         """资源清理"""
+@@ -200,12 +227,7 @@ class TTSProvider(TTSProviderBase):
+             self.opus_encoder.close()
+ 
+     def to_tts(self, text: str) -> list:
+-        """非流式TTS处理，用于测试及保存音频文件的场景
+-        Args:
+-            text: 要转换的文本
+-        Returns:
+-            list: 返回opus编码后的音频数据列表
+-        """
++        """非流式TTS处理，用于测试、预热缓存及保存音频文件的场景（使用独立编码器保证线程安全）"""
+         start_time = time.time()
+         text = MarkdownCleaner.clean_markdown(text)
+         if self._correct_words_pattern:
+@@ -215,7 +237,7 @@ class TTSProvider(TTSProviderBase):
+ 
+         try:
+             with requests.post(
+-                self.api_url, json=payload, timeout=self.tts_timeout
++                self.api_url, json=payload, timeout=self.tts_timeout, proxies={"http": None, "https": None}
+             ) as response:
+                 if response.status_code != 200:
+                     logger.bind(tag=TAG).error(
+@@ -223,33 +245,33 @@ class TTSProvider(TTSProviderBase):
+                     )
+                     return []
+ 
+-                logger.info(f"TTS请求成功: {text}, 耗时: {time.time() - start_time}秒")
++                logger.bind(tag=TAG).info(f"TTS请求成功: {text}, 耗时: {time.time() - start_time:.3f}秒")
+ 
+-                # 使用opus编码器处理PCM数据
++                # 使用独立临时opus编码器处理PCM数据，避免与流式线程并发访问self.opus_encoder
+                 opus_datas = []
+                 pcm_data = response.content
+-
+-                # 计算每帧的字节数
+-                frame_bytes = int(
+-                    self.opus_encoder.sample_rate
+-                    * self.opus_encoder.channels
+-                    * self.opus_encoder.frame_size_ms
+-                    / 1000
+-                    * 2
++                temp_encoder = opus_encoder_utils.OpusEncoderUtils(
++                    sample_rate=24000, channels=1, frame_size_ms=60
+                 )
+-
+-                # 分帧处理PCM数据
+-                for i in range(0, len(pcm_data), frame_bytes):
+-                    frame = pcm_data[i : i + frame_bytes]
+-                    if len(frame) < frame_bytes:
+-                        # 最后一帧可能不足，用0填充
+-                        frame = frame + b"\x00" * (frame_bytes - len(frame))
+-
+-                    self.opus_encoder.encode_pcm_to_opus_stream(
+-                        frame,
+-                        end_of_stream=(i + frame_bytes >= len(pcm_data)),
+-                        callback=lambda opus: opus_datas.append(opus)
++                try:
++                    frame_bytes = int(
++                        temp_encoder.sample_rate
++                        * temp_encoder.channels
++                        * temp_encoder.frame_size_ms
++                        / 1000
++                        * 2
+                     )
++                    for i in range(0, len(pcm_data), frame_bytes):
++                        frame = pcm_data[i : i + frame_bytes]
++                        if len(frame) < frame_bytes:
++                            frame = frame + b"\x00" * (frame_bytes - len(frame))
++                        temp_encoder.encode_pcm_to_opus_stream(
++                            frame,
++                            end_of_stream=(i + frame_bytes >= len(pcm_data)),
++                            callback=lambda opus: opus_datas.append(opus)
++                        )
++                finally:
++                    temp_encoder.close()
+ 
+                 return opus_datas
+ 
+diff --git a/main/xiaozhi-server/core/utils/opus_encoder_utils.py b/main/xiaozhi-server/core/utils/opus_encoder_utils.py
+index 8d603e2..864cef0 100644
+--- a/main/xiaozhi-server/core/utils/opus_encoder_utils.py
++++ b/main/xiaozhi-server/core/utils/opus_encoder_utils.py
+@@ -31,7 +31,7 @@ class OpusEncoderUtils:
+         self.total_frame_size = self.frame_size * channels
+ 
+         # 比特率和复杂度设置
+-        self.bitrate = 24000  # bps
++        self.bitrate = 64000  # bps
+         self.complexity = 10  # 最高质量
+ 
+         # 缓冲区初始化为空
+diff --git a/main/xiaozhi-server/core/utils/util.py b/main/xiaozhi-server/core/utils/util.py
+index ef02754..afd987e 100644
+--- a/main/xiaozhi-server/core/utils/util.py
++++ b/main/xiaozhi-server/core/utils/util.py
+@@ -338,6 +338,7 @@ async def audio_to_data(
+ 
+         # 初始化Opus编码器
+         encoder = opuslib_next.Encoder(16000, 1, opuslib_next.APPLICATION_AUDIO)
++        encoder.bitrate = 64000
+ 
+         # 编码参数
+         frame_duration = 60  # 60ms per frame
+diff --git a/main/xiaozhi-server/plugins_func/functions/play_music.py b/main/xiaozhi-server/plugins_func/functions/play_music.py
+index fd21f9f..dd0155a 100644
+--- a/main/xiaozhi-server/plugins_func/functions/play_music.py
++++ b/main/xiaozhi-server/plugins_func/functions/play_music.py
+@@ -1,32 +1,30 @@
+-import os
+-import re
+-import time
+-import random
+-import difflib
+-import traceback
+-from pathlib import Path
+-from core.providers.tts.dto.dto import TTSMessageDTO, SentenceType, ContentType
+-from plugins_func.register import register_function, ToolType, ActionResponse, Action
+-from typing import TYPE_CHECKING
+-
+-if TYPE_CHECKING:
+-    from core.connection import ConnectionHandler
++import json
++import urllib.request
++from config.logger import setup_logging
++from plugins_func.register import register_function, ToolType, Action, ActionResponse
+ 
+ TAG = __name__
+-
+-MUSIC_CACHE = {}
++logger = setup_logging()
+ 
+ play_music_function_desc = {
+     "type": "function",
+     "function": {
+         "name": "play_music",
+-        "description": "当用户要求播放音乐、歌曲时调用。",
++        "description": (
++            "播放音乐或控制音乐播放（默认使用网易云音乐无损曲库，同时支持QQ音乐与U盘本地曲库）。"
++            "当用户要求播放歌曲、歌手、'我喜欢的音乐'、'每日推荐'、'我的歌单'、U盘音乐，"
++            "或者要求暂停、继续播放、停止播放、下一首、上一首时调用本工具。"
++        ),
+         "parameters": {
+             "type": "object",
+             "properties": {
+                 "song_name": {
+                     "type": "string",
+-                    "description": "歌曲名称，如果用户没有指定具体歌名则为'random', 明确指定的时返回音乐的名字 示例: ```用户:播放两只老虎\n参数：两只老虎``` ```用户:播放音乐 \n参数：random ```",
++                    "description": (
++                        "要播放的歌名、歌手名、'我喜欢的音乐'、'每日推荐'或控制指令。"
++                        "控制指令可传：'pause'(暂停)、'resume'(继续)、'stop'(停止)、'next'(下一首)、'prev'(上一首)。"
++                        "若用户未指定具体歌曲（如'随便放首歌'），传 'random'。"
++                    ),
+                 }
+             },
+             "required": ["song_name"],
+@@ -35,200 +33,62 @@ play_music_function_desc = {
+ }
+ 
+ 
+-@register_function("play_music", play_music_function_desc, ToolType.SYSTEM_CTL)
+-async def play_music(conn: "ConnectionHandler", song_name: str):
+-    try:
+-        music_intent = (
+-            f"播放音乐 {song_name}" if song_name != "random" else "随机播放音乐"
+-        )
+-        await handle_music_command(conn, music_intent)
+-        return ActionResponse(
+-            action=Action.RECORD, result="指令已接收", response="正在为您播放音乐"
+-        )
+-    except Exception as e:
+-        conn.logger.bind(tag=TAG).error(f"处理音乐意图错误: {e}")
+-        return ActionResponse(
+-            action=Action.RESPONSE, result=str(e), response="播放音乐时出错了"
+-        )
+-
+-
+-def _extract_song_name(text):
+-    """从用户输入中提取歌名"""
+-    for keyword in ["播放音乐"]:
+-        if keyword in text:
+-            parts = text.split(keyword)
+-            if len(parts) > 1:
+-                return parts[1].strip()
+-    return None
+-
+-
+-def _find_best_match(potential_song, music_files):
+-    """查找最匹配的歌曲"""
+-    best_match = None
+-    highest_ratio = 0
+-
+-    for music_file in music_files:
+-        song_name = os.path.splitext(music_file)[0]
+-        ratio = difflib.SequenceMatcher(None, potential_song, song_name).ratio()
+-        if ratio > highest_ratio and ratio > 0.4:
+-            highest_ratio = ratio
+-            best_match = music_file
+-    return best_match
+-
+-
+-def get_music_files(music_dir, music_ext):
+-    music_dir = Path(music_dir)
+-    music_files = []
+-    music_file_names = []
+-    for file in music_dir.rglob("*"):
+-        # 判断是否是文件
+-        if file.is_file():
+-            # 获取文件扩展名
+-            ext = file.suffix.lower()
+-            # 判断扩展名是否在列表中
+-            if ext in music_ext:
+-                # 添加相对路径
+-                music_files.append(str(file.relative_to(music_dir)))
+-                music_file_names.append(
+-                    os.path.splitext(str(file.relative_to(music_dir)))[0]
+-                )
+-    return music_files, music_file_names
+-
+-
+-def initialize_music_handler(conn: "ConnectionHandler"):
+-    global MUSIC_CACHE
+-    if MUSIC_CACHE == {}:
+-        plugins_config = conn.config.get("plugins", {})
+-        if "play_music" in plugins_config:
+-            MUSIC_CACHE["music_config"] = plugins_config["play_music"]
+-            MUSIC_CACHE["music_dir"] = os.path.abspath(
+-                MUSIC_CACHE["music_config"].get("music_dir", "./music")  # 默认路径修改
+-            )
+-            MUSIC_CACHE["music_ext"] = MUSIC_CACHE["music_config"].get(
+-                "music_ext", (".mp3", ".wav", ".p3")
+-            )
+-            MUSIC_CACHE["refresh_time"] = MUSIC_CACHE["music_config"].get(
+-                "refresh_time", 60
+-            )
+-        else:
+-            MUSIC_CACHE["music_dir"] = os.path.abspath("./music")
+-            MUSIC_CACHE["music_ext"] = (".mp3", ".wav", ".p3")
+-            MUSIC_CACHE["refresh_time"] = 60
+-        # 获取音乐文件列表
+-        MUSIC_CACHE["music_files"], MUSIC_CACHE["music_file_names"] = get_music_files(
+-            MUSIC_CACHE["music_dir"], MUSIC_CACHE["music_ext"]
+-        )
+-        MUSIC_CACHE["scan_time"] = time.time()
+-    return MUSIC_CACHE
+-
+-
+-async def handle_music_command(conn: "ConnectionHandler", text):
+-    initialize_music_handler(conn)
+-    global MUSIC_CACHE
+-
+-    """处理音乐播放指令"""
+-    clean_text = re.sub(r"[^\w\s]", "", text).strip()
+-    conn.logger.bind(tag=TAG).debug(f"检查是否是音乐命令: {clean_text}")
++def _api_post(path: str, payload: dict) -> dict:
++    req = urllib.request.Request(
++        f"http://127.0.0.1:8091{path}",
++        data=json.dumps(payload).encode("utf-8"),
++        headers={"Content-Type": "application/json"},
++        method="POST",
++    )
++    with urllib.request.urlopen(req, timeout=12) as r:
++        return json.loads(r.read().decode("utf-8", errors="replace"))
+ 
+-    # 尝试匹配具体歌名
+-    if os.path.exists(MUSIC_CACHE["music_dir"]):
+-        if time.time() - MUSIC_CACHE["scan_time"] > MUSIC_CACHE["refresh_time"]:
+-            # 刷新音乐文件列表
+-            MUSIC_CACHE["music_files"], MUSIC_CACHE["music_file_names"] = (
+-                get_music_files(MUSIC_CACHE["music_dir"], MUSIC_CACHE["music_ext"])
+-            )
+-            MUSIC_CACHE["scan_time"] = time.time()
+ 
+-        potential_song = _extract_song_name(clean_text)
+-        if potential_song:
+-            best_match = _find_best_match(potential_song, MUSIC_CACHE["music_files"])
+-            if best_match:
+-                conn.logger.bind(tag=TAG).info(f"找到最匹配的歌曲: {best_match}")
+-                await play_local_music(conn, specific_file=best_match)
+-                return True
+-    # 检查是否是通用播放音乐命令
+-    await play_local_music(conn)
+-    return True
+-
+-
+-def _get_random_play_prompt(song_name):
+-    """生成随机播放引导语"""
+-    # 移除文件扩展名
+-    clean_name = os.path.splitext(song_name)[0]
+-    prompts = [
+-        f"正在为您播放，《{clean_name}》",
+-        f"请欣赏歌曲，《{clean_name}》",
+-        f"即将为您播放，《{clean_name}》",
+-        f"现在为您带来，《{clean_name}》",
+-        f"让我们一起聆听，《{clean_name}》",
+-        f"接下来请欣赏，《{clean_name}》",
+-        f"此刻为您献上，《{clean_name}》",
+-    ]
+-    # 直接使用random.choice，不设置seed
+-    return random.choice(prompts)
+-
+-
+-async def play_local_music(conn: "ConnectionHandler", specific_file=None):
+-    global MUSIC_CACHE
+-    """播放本地音乐文件"""
++@register_function("play_music", play_music_function_desc, ToolType.SYSTEM_CTL)
++def play_music(conn, song_name: str):
+     try:
+-        if not os.path.exists(MUSIC_CACHE["music_dir"]):
+-            conn.logger.bind(tag=TAG).error(
+-                f"音乐目录不存在: " + MUSIC_CACHE["music_dir"]
+-            )
+-            return
+-
+-        # 确保路径正确性
+-        if specific_file:
+-            selected_music = specific_file
+-            music_path = os.path.join(MUSIC_CACHE["music_dir"], specific_file)
+-        else:
+-            if not MUSIC_CACHE["music_files"]:
+-                conn.logger.bind(tag=TAG).error("未找到MP3音乐文件")
+-                return
+-            selected_music = random.choice(MUSIC_CACHE["music_files"])
+-            music_path = os.path.join(MUSIC_CACHE["music_dir"], selected_music)
+-
+-        if not os.path.exists(music_path):
+-            conn.logger.bind(tag=TAG).error(f"选定的音乐文件不存在: {music_path}")
+-            return
+-        text = _get_random_play_prompt(selected_music)
+-        conn.tts.store_tts_text(conn.sentence_id, text)
+-        # conn.dialogue.put(Message(role="assistant", content=text))
+-
+-        if conn.intent_type == "intent_llm":
+-            conn.tts.tts_text_queue.put(
+-                TTSMessageDTO(
+-                    sentence_id=conn.sentence_id,
+-                    sentence_type=SentenceType.FIRST,
+-                    content_type=ContentType.ACTION,
++        q = (song_name or "random").strip()
++        q_low = q.lower()
++        ctrl_map = {
++            "pause": "pause", "暂停": "pause", "暂停播放": "pause",
++            "resume": "resume", "继续": "resume", "继续播放": "resume",
++            "stop": "stop", "停止": "stop", "停止播放": "stop", "关闭音乐": "stop", "别唱了": "stop", "不听了": "stop",
++            "next": "next", "下一首": "next", "换一首": "next", "切歌": "next",
++            "prev": "prev", "上一首": "prev",
++        }
++        if q_low in ctrl_map:
++            res = _api_post("/api/music/control", {"action": ctrl_map[q_low]})
++            if res.get("ok"):
++                t = res.get("track")
++                if t:
++                    return ActionResponse(
++                        action=Action.REQLLM,
++                        result="指令已执行",
++                        response=f"好的，正在为您播放 {t.get('artist', '')} 的《{t.get('title', '')}》",
++                    )
++                return ActionResponse(
++                    action=Action.REQLLM,
++                    result="指令已执行",
++                    response=res.get("message", "好的"),
+                 )
++            return ActionResponse(action=Action.RESPONSE, result="失败", response=res.get("error", "操作失败"))
++
++        res = _api_post("/api/music/play", {"query": q, "source": "auto"})
++        if res.get("ok"):
++            title = res.get("title", q)
++            artist = res.get("artist", "")
++            source = res.get("source", "网易云音乐")
++            artist_str = f"{artist}的" if artist else ""
++            return ActionResponse(
++                action=Action.RESPONSE,
++                result="正在播放",
++                response=f"正在通过{source}为您播放{artist_str}《{title}》",
+             )
+-        conn.tts.tts_text_queue.put(
+-            TTSMessageDTO(
+-                sentence_id=conn.sentence_id,
+-                sentence_type=SentenceType.MIDDLE,
+-                content_type=ContentType.TEXT,
+-                content_detail=text,
+-            )
+-        )
+-        conn.tts.tts_text_queue.put(
+-            TTSMessageDTO(
+-                sentence_id=conn.sentence_id,
+-                sentence_type=SentenceType.MIDDLE,
+-                content_type=ContentType.FILE,
+-                content_file=music_path,
+-            )
++        return ActionResponse(
++            action=Action.RESPONSE,
++            result="未找到歌曲",
++            response=res.get("error", f"抱歉，没有找到《{q}》的可播放音源"),
+         )
+-        if conn.intent_type == "intent_llm":
+-            conn.tts.tts_text_queue.put(
+-                TTSMessageDTO(
+-                    sentence_id=conn.sentence_id,
+-                    sentence_type=SentenceType.LAST,
+-                    content_type=ContentType.ACTION,
+-                )
+-            )
+-
+     except Exception as e:
+-        conn.logger.bind(tag=TAG).error(f"播放音乐失败: {str(e)}")
+-        conn.logger.bind(tag=TAG).error(f"详细错误: {traceback.format_exc()}")
++        logger.bind(tag=TAG).error(f"play_music failed: {e}")
++        return ActionResponse(action=Action.RESPONSE, result=str(e), response="播放音乐时出错了，请稍后再试")

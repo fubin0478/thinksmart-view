@@ -1,0 +1,13 @@
+[Unit]
+Description=Initialize display backlight safely before kiosk startup
+After=systemd-udev-settle.service
+Before=thinksmart-kiosk.service user@1000.service screen-wake.service
+
+[Service]
+Type=oneshot
+RemainAfterExit=yes
+Environment=PYTHONDONTWRITEBYTECODE=1
+ExecStart=/usr/bin/python3 -B -c 'import glob,math,pathlib,sys; sys.path.insert(0,"/usr/local/bin"); import thinksmart_display as td; cfg=td.read_json("/home/ubuntu/.config/thinksmart-client/config.json"); mode=td.read_json(td.MODE_PATH); b=cfg.get("brightness"); vb=type(b) in (int,float) and math.isfinite(b) and 0<=b<=100; lv=b if vb else 100; auto=td.automatic_for({"brightness":lv},mode); target=1600 if auto else (td.MINIMUM+round((td.MAXIMUM-td.MINIMUM)*lv/100) if vb else None); [p.write_text(str(target or 2000)+chr(10)) for p in map(pathlib.Path,glob.glob("/sys/class/backlight/*/brightness")) if p.is_file() and (target is not None or (lambda s: s.isdigit() and int(s)<=10)(p.read_text().strip()))]'
+
+[Install]
+WantedBy=multi-user.target

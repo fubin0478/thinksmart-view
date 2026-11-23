@@ -1,0 +1,19 @@
+[Unit]
+Description=Input-idle screen blanker
+After=graphical-session.target
+Wants=graphical-session.target
+ConditionUser=ubuntu
+
+[Service]
+Type=simple
+Environment=PYTHONUNBUFFERED=1 PYTHONDONTWRITEBYTECODE=1
+ExecStart=/usr/bin/python3 -B /usr/local/bin/idle-blanker.py
+Restart=always
+RestartSec=3
+TimeoutStopSec=5
+MemoryHigh=48M
+MemoryMax=64M
+TasksMax=16
+
+[Install]
+WantedBy=default.target
