@@ -167,19 +167,26 @@ class NeteaseIntegrationTests(unittest.TestCase):
             'netease_profile': {'userId': '7788', 'nickname': '黑胶用户', 'isVip': True, 'loginType': 'netease'},
         })
 
-        with mock.patch.object(Q, '_netease_api', return_value={
-            'code': 200,
-            'playlist': [
-                {'id': 111, 'name': '我喜欢的音乐', 'trackCount': 42, 'specialType': 5, 'coverImgUrl': 'http://p1.music.126.net/c1.jpg'},
-                {'id': 222, 'name': '夜跑歌单', 'trackCount': 15, 'specialType': 0, 'coverImgUrl': 'https://p1.music.126.net/c2.jpg'},
-            ],
-        }):
+        def fake_pl_api(path, params=None, **kwargs):
+            if path == '/user/playlist':
+                return {
+                    'code': 200,
+                    'playlist': [
+                        {'id': 111, 'name': '我喜欢的音乐', 'trackCount': 42, 'specialType': 5, 'coverImgUrl': 'http://p1.music.126.net/c1.jpg'},
+                        {'id': 222, 'name': '夜跑歌单', 'trackCount': 15, 'specialType': 0, 'coverImgUrl': 'https://p1.music.126.net/c2.jpg'},
+                    ],
+                }
+            if path == '/recommend/resource':
+                return {'code': 200, 'recommend': []}
+            return {'code': 200}
+
+        with mock.patch.object(Q, '_netease_api', side_effect=fake_pl_api):
             pls = Q.netease_user_playlists()
-        self.assertEqual(len(pls), 2)
-        self.assertEqual(pls[0]['id'], 'ncm:111')
+        self.assertEqual([p['id'] for p in pls], ['ncm:111', 'ncm:daily', 'ncm:fm', 'ncm:222'])
         self.assertTrue(pls[0]['name'].startswith('❤️'))
         self.assertEqual(pls[0]['source'], '网易云')
-        self.assertEqual(pls[1]['id'], 'ncm:222')
+        self.assertTrue(pls[1]['cover'].startswith('data:image/svg+xml;base64,'))
+        self.assertTrue(pls[2]['cover'].startswith('data:image/svg+xml;base64,'))
 
         with mock.patch.object(Q, '_netease_api', return_value={
             'code': 200,
@@ -220,6 +227,71 @@ class NeteaseIntegrationTests(unittest.TestCase):
         self.assertTrue(fav_res['ok'])
         self.assertTrue(fav_res['liked'])
         self.assertTrue(Q.netease_fav_state('ncm:777'))
+
+    def test_daily_fm_and_radar_playlists(self):
+        Q.save_config({
+            'uin': '',
+            'qm_keyst': '',
+            'cookies_str': '',
+            'quality_level': 'lossless',
+            'user_profile': None,
+            'netease_api_url': 'http://192.168.100.1:3000',
+            'netease_cookie': 'MUSIC_U=vipcookie',
+            'netease_profile': {'userId': '7788', 'nickname': '黑胶用户', 'isVip': True, 'loginType': 'netease'},
+        })
+
+        def fake_rec_api(path, params=None, **kwargs):
+            if path == '/user/playlist':
+                return {
+                    'code': 200,
+                    'playlist': [
+                        {'id': 111, 'name': '我喜欢的音乐', 'trackCount': 50, 'specialType': 5, 'coverImgUrl': 'http://p1.music.126.net/l.jpg'},
+                        {'id': 444, 'name': '私人雷达', 'trackCount': 30, 'specialType': 0, 'coverImgUrl': 'http://p1.music.126.net/r.jpg'},
+                        {'id': 555, 'name': '我的自建歌单', 'trackCount': 12, 'specialType': 0, 'coverImgUrl': 'http://p1.music.126.net/u.jpg'},
+                    ],
+                }
+            if path == '/recommend/resource':
+                return {
+                    'code': 200,
+                    'recommend': [
+                        {'id': 333, 'name': '华语流行精选', 'trackCount': 20, 'picUrl': 'http://p1.music.126.net/h.jpg'},
+                        {'id': 444, 'name': '私人雷达', 'trackCount': 30, 'picUrl': 'http://p1.music.126.net/r.jpg'},
+                    ],
+                }
+            return {'code': 200}
+
+        with mock.patch.object(Q, '_netease_api', side_effect=fake_rec_api):
+            pls = Q.netease_user_playlists()
+        self.assertEqual([p['id'] for p in pls], ['ncm:111', 'ncm:daily', 'ncm:fm', 'ncm:444', 'ncm:333', 'ncm:555'])
+        self.assertTrue(pls[3]['name'].startswith('🎯'))
+        self.assertTrue(pls[4]['name'].startswith('✨'))
+
+        with mock.patch.object(Q, '_netease_api', return_value={
+            'code': 200,
+            'data': {'dailySongs': [
+                {'id': 1001, 'name': '日推一', 'ar': [{'name': '歌手A'}], 'al': {'name': '专辑A', 'picUrl': 'http://p1.music.126.net/a.jpg'}, 'dt': 180000, 'fee': 8},
+            ]},
+        }):
+            daily = Q.netease_playlist_tracks('ncm:daily')
+        self.assertEqual(len(daily), 1)
+        self.assertEqual(daily[0]['mid'], 'ncm:1001')
+
+        fm_batches = [
+            {'code': 200, 'data': [
+                {'id': 2001, 'name': 'FM1', 'artists': [{'name': 'A'}], 'album': {'name': 'Al', 'picUrl': ''}, 'duration': 200000},
+                {'id': 2002, 'name': 'FM2', 'artists': [{'name': 'B'}], 'album': {'name': 'Al', 'picUrl': ''}, 'duration': 210000},
+            ]},
+            {'code': 200, 'data': [
+                {'id': 2002, 'name': 'FM2', 'artists': [{'name': 'B'}], 'album': {'name': 'Al', 'picUrl': ''}, 'duration': 210000},
+                {'id': 2003, 'name': 'FM3', 'artists': [{'name': 'C'}], 'album': {'name': 'Al', 'picUrl': ''}, 'duration': 220000},
+            ]},
+            {'code': 200, 'data': [
+                {'id': 2003, 'name': 'FM3', 'artists': [{'name': 'C'}], 'album': {'name': 'Al', 'picUrl': ''}, 'duration': 220000},
+            ]},
+        ]
+        with mock.patch.object(Q, '_netease_api', side_effect=fm_batches):
+            fm = Q.netease_playlist_tracks('ncm:fm')
+        self.assertEqual([x['mid'] for x in fm], ['ncm:2001', 'ncm:2002', 'ncm:2003'])
 
     def test_safe_cover_regex_accepts_netease_domains(self):
         src = SRC.read_text(encoding='utf-8')

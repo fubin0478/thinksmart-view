@@ -2541,6 +2541,77 @@ def netease_logout() -> dict:
     return {'ok': True}
 
 
+def netease_daily_songs(limit: int = 50) -> list:
+    cfg = load_config()
+    cookie = str(cfg.get('netease_cookie') or '').strip()
+    if not cookie:
+        return []
+    res = _netease_api('/recommend/songs', cookie=cookie, timeout=8.0, use_post=True)
+    data = res.get('data') if isinstance(res.get('data'), dict) else {}
+    songs = data.get('dailySongs') or res.get('recommend') or []
+    dq = _default_quality_label(cfg)
+    return [_format_netease_song(s, default_q=dq) for s in songs[:limit] if isinstance(s, dict) and s.get('id')]
+
+
+def netease_personal_fm(target_count: int = 15, max_rounds: int = 5) -> list:
+    cfg = load_config()
+    cookie = str(cfg.get('netease_cookie') or '').strip()
+    if not cookie:
+        return []
+    dq = _default_quality_label(cfg)
+    out = []
+    seen = set()
+    for _ in range(max(1, int(max_rounds))):
+        res = _netease_api('/personal_fm', cookie=cookie, timeout=8.0, use_post=True)
+        batch = res.get('data') if isinstance(res.get('data'), list) else []
+        added = 0
+        for s in batch:
+            if not isinstance(s, dict) or not s.get('id'):
+                continue
+            sid = str(s['id']).strip()
+            if not sid or sid in seen:
+                continue
+            seen.add(sid)
+            out.append(_format_netease_song(s, default_q=dq))
+            added += 1
+            if len(out) >= target_count:
+                return out
+        if added == 0:
+            break
+    return out
+
+
+def netease_recommend_playlists(limit: int = 8) -> list:
+    cfg = load_config()
+    cookie = str(cfg.get('netease_cookie') or '').strip()
+    if not cookie:
+        return []
+    res = _netease_api('/recommend/resource', cookie=cookie, timeout=8.0, use_post=True)
+    raw = res.get('recommend') or []
+    items = [pl for pl in raw if isinstance(pl, dict) and pl.get('id')]
+    items.sort(key=lambda pl: (0 if '雷达' in str(pl.get('name') or '') else 1))
+    out = []
+    for pl in items[:limit]:
+        pid = str(pl.get('id') or '').strip()
+        raw_name = str(pl.get('name') or '').strip() or '推荐歌单'
+        try:
+            cnt = int(pl.get('trackCount') or 0)
+        except (TypeError, ValueError):
+            cnt = 0
+        if raw_name.startswith(('🎯', '✨', '❤️', '🎵')):
+            name = raw_name
+        else:
+            name = f'🎯 {raw_name}' if '雷达' in raw_name else f'✨ {raw_name}'
+        out.append({
+            'id': f'ncm:{pid}',
+            'name': name,
+            'count': cnt,
+            'cover': _https_url(str(pl.get('picUrl') or pl.get('coverImgUrl') or '')),
+            'source': '网易云',
+        })
+    return out
+
+
 def netease_user_playlists() -> list:
     cfg = load_config()
     cookie = str(cfg.get('netease_cookie') or '').strip()
@@ -2548,9 +2619,19 @@ def netease_user_playlists() -> list:
     uid = str(prof.get('userId') or '').strip()
     if not cookie or not uid:
         return []
-    res = _netease_api('/user/playlist', {'uid': uid, 'limit': 50}, cookie=cookie, use_post=True)
+
+    def _fetch_user():
+        return _netease_api('/user/playlist', {'uid': uid, 'limit': 50}, cookie=cookie, use_post=True)
+
+    with concurrent.futures.ThreadPoolExecutor(max_workers=2) as pool:
+        f_user = pool.submit(_fetch_user)
+        f_rec = pool.submit(netease_recommend_playlists, 8)
+        res = f_user.result()
+        rec_pls = f_rec.result()
+
     raw_list = res.get('playlist') or []
-    out = []
+    liked_pls = []
+    rest_pls = []
     for idx, pl in enumerate(raw_list):
         if not isinstance(pl, dict):
             continue
@@ -2564,13 +2645,43 @@ def netease_user_playlists() -> list:
             cnt = 0
         is_liked = (idx == 0 or pl.get('specialType') == 5)
         name = raw_name if raw_name.startswith(('❤️', '🎵')) else (f'❤️ {raw_name}' if is_liked else f'🎵 {raw_name}')
-        out.append({
+        entry = {
             'id': f'ncm:{pid}',
             'name': name,
             'count': cnt,
             'cover': _https_url(str(pl.get('coverImgUrl') or '')),
             'source': '网易云',
-        })
+        }
+        if is_liked and not liked_pls:
+            liked_pls.append(entry)
+        else:
+            rest_pls.append(entry)
+
+    day_num = str(time.localtime().tm_mday)
+    special_pls = [
+        {
+            'id': 'ncm:daily',
+            'name': '✨ 每日推荐',
+            'count': 30,
+            'cover': _radio_emblem_uri('#4a192c', '#1e1026', '#ff8a80', '每日推荐', day_num),
+            'source': '网易云',
+        },
+        {
+            'id': 'ncm:fm',
+            'name': '📻 私人漫游',
+            'count': 15,
+            'cover': _radio_emblem_uri('#1b2a4a', '#101828', '#64b5f6', '私人漫游', 'FM'),
+            'source': '网易云',
+        },
+    ]
+
+    out = []
+    seen_ids = set()
+    for item in liked_pls + special_pls + rec_pls + rest_pls:
+        iid = item.get('id')
+        if iid and iid not in seen_ids:
+            seen_ids.add(iid)
+            out.append(item)
     return out
 
 
@@ -2578,6 +2689,10 @@ def netease_playlist_tracks(pl_id: str, limit: int = 200) -> list:
     pid = str(pl_id or '').strip()
     if pid.startswith('ncm:'):
         pid = pid[4:]
+    if pid == 'daily':
+        return netease_daily_songs(limit=min(limit, 50))
+    if pid == 'fm':
+        return netease_personal_fm(target_count=15)
     if not pid.isdigit():
         return []
     cfg = load_config()

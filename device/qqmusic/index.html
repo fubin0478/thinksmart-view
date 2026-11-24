@@ -4721,7 +4721,7 @@ async function toggleFav() {
   const mid = t.mid, prevLiked = favLiked, want = favLiked !== true;
   ++favReqSeq;
   const isNcm = String(mid).startsWith('ncm:');
-  const likedPl = isNcm ? myPlaylists.find(x => String(x.id).startsWith('ncm:')) : myPlaylists.find(x => String(x.id) === 'dir_201');
+  const likedPl = isNcm ? myPlaylists.find(x => /^ncm:\d+$/.test(String(x.id))) : myPlaylists.find(x => String(x.id) === 'dir_201');
   const likedPlId = likedPl ? String(likedPl.id) : (isNcm ? '' : 'dir_201');
   favBusy = true; renderFav();
   try {
@@ -4772,7 +4772,7 @@ async function toggleFav() {
 // ===== Round 109: local favorite & sleep timer =====
 function openFavPlaylist() {
   const isNcmCur = !!(state && state.track && String(state.track.mid || '').startsWith('ncm:'));
-  const ncmFav = myPlaylists.find(x => String(x.id).startsWith('ncm:'));
+  const ncmFav = myPlaylists.find(x => /^ncm:\d+$/.test(String(x.id)));
   const qqFav = myPlaylists.find(x => String(x.id) === 'dir_201');
   const target = (isNcmCur ? (ncmFav || qqFav) : (qqFav || ncmFav)) || myPlaylists[0];
   selectedPlId = target ? String(target.id) : 'dir_201';
