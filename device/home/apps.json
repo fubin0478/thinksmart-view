@@ -25,6 +25,7 @@
     },
     {
       "id": "focus",
+      "hidden": true,
       "group": "app",
       "title": "学习专注",
       "icon": "timer",
@@ -46,6 +47,7 @@
     },
     {
       "id": "server",
+      "hidden": true,
       "group": "app",
       "title": "服务器",
       "icon": "server",
@@ -57,6 +59,7 @@
     },
     {
       "id": "tutor",
+      "hidden": true,
       "group": "app",
       "title": "AI讲题",
       "icon": "tutor",
@@ -75,6 +78,16 @@
       "sub": "已关闭",
       "action": {
         "type": "study-toggle"
+      }
+    },
+    {
+      "id": "sleep",
+      "group": "quick",
+      "title": "睡眠",
+      "icon": "moon",
+      "sub": "一键入睡",
+      "action": {
+        "type": "sleep"
       }
     },
     {
