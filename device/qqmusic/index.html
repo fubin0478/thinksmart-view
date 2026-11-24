@@ -1360,6 +1360,32 @@ html[data-theme="light"] .row-dur.live-tag { background: #f5d0d0; color: #a82424
   body:has(#viewSearch.active) .np .lyrics-stage { display: none; }
 }
 html.ts-rot, html.ts-rot * { touch-action: none !important; }
+.pl-cover .pl-src {
+  position: absolute; left: 6px; top: 6px; padding: 2px 6px; border-radius: 6px;
+  font-size: 10.5px; font-weight: 700; line-height: 1.2; color: #fff;
+  background: rgba(15, 22, 34, 0.78); backdrop-filter: blur(4px);
+}
+.pl-cover .pl-src.ncm { background: rgba(214, 52, 46, 0.9); }
+.pl-cover .pl-src.qq { background: rgba(21, 168, 107, 0.88); }
+.vip-tag.ncm { background: #3b1919; color: #ff9c97; }
+html[data-theme="light"] .vip-tag.ncm { background: #f6d3d1; color: #a32620; }
+.search-src-row { display: flex; align-items: center; gap: 10px; margin-bottom: 8px; flex-shrink: 0; }
+.search-src-lbl { font-size: 13px; font-weight: 700; color: var(--muted); }
+.search-src-seg { width: auto; min-width: 184px; }
+.search-src-seg .chip { height: 28px; padding: 0 12px; font-size: 13px; white-space: nowrap; }
+.ncm-api-row { display: flex; gap: 10px; align-items: center; margin-top: 2px; }
+.ncm-api-input {
+  flex: 1; height: 44px; border-radius: 12px; border: 1px solid var(--line);
+  background: var(--bg); color: var(--text); padding: 0 12px; font-size: 14px; min-width: 0;
+}
+.ncm-api-input:focus { outline: none; border-color: var(--green); }
+.ncm-api-row .btn-green { height: 44px; padding: 0 18px; flex-shrink: 0; }
+.acc-prompt-card {
+  display: flex; align-items: center; justify-content: space-between; gap: 12px;
+  padding: 14px 18px; border-radius: 18px; background: var(--panel); border: 1px solid var(--line);
+}
+.acc-prompt-card .apc-title { font-size: 16px; font-weight: 700; color: var(--text); }
+.acc-prompt-card .apc-sub { font-size: 13px; color: var(--muted); margin-top: 2px; }
 </style>
 </head>
 <body>
@@ -1471,7 +1497,7 @@ html.ts-rot, html.ts-rot * { touch-action: none !important; }
 
     <div id="mineEmptyBox" class="mine-empty-card">
       <div class="me-ico"><svg class="i"><use href="#i-qr"/></svg></div>
-      <h3>暂未登录 QQ 音乐账号</h3>
+      <h3>暂未登录网易云或 QQ 音乐账号</h3>
       <p>点击左下角「账号信息」或下方按钮扫码登录，即可同步「我喜欢」与个人收藏歌单</p>
       <button class="btn-green" style="height:48px; padding:0 26px; font-size:15.5px;" onclick="switchTab('account')"><svg class="i"><use href="#i-qr"/></svg>去扫码登录</button>
     </div>
@@ -1527,6 +1553,13 @@ html.ts-rot, html.ts-rot * { touch-action: none !important; }
       <button class="btn-ghost" id="btnToggleKbd" onclick="toggleTouchKbd()"><svg class="i"><use href="#i-kbd"/></svg>键盘</button>
       <button class="btn-green" onclick="doSearch()">搜索</button>
       <button class="btn-voice" id="btnVoiceSearch" onclick="triggerVoiceSearch()"><svg class="i"><use href="#i-mic"/></svg>语音点歌</button>
+    </div>
+    <div class="search-src-row">
+      <span class="search-src-lbl">搜索曲库</span>
+      <div class="seg search-src-seg">
+        <button type="button" class="chip active" id="searchSrcNetease" onclick="setSearchSource('netease')">网易云</button>
+        <button type="button" class="chip" id="searchSrcQq" onclick="setSearchSource('qq')">QQ 音乐</button>
+      </div>
     </div>
     <div class="touch-kbd" id="touchKbd"></div>
     <div class="singer-grid" id="singerGrid"></div>
@@ -1590,7 +1623,31 @@ html.ts-rot, html.ts-rot * { touch-action: none !important; }
       </div>
 
       <div id="accountInfoBox" style="display:none; flex-direction:column; gap:16px;">
-        <div class="acc-hero-card">
+        <div class="acc-hero-card" id="ncmAccountCard" style="display:none;">
+          <div class="acc-hero-top">
+            <img class="acc-avatar-lg" id="ncmAccAvatar" alt="" onerror="if(typeof DEFAULT_COVER!=='undefined'&&this.src!==DEFAULT_COVER)this.src=DEFAULT_COVER">
+            <div class="acc-hero-meta">
+              <div class="acc-hero-name"><span id="ncmAccName">网易云用户</span><span class="vip-tag ncm" id="ncmVipTag">黑胶 VIP · 无损音质</span></div>
+              <div class="acc-hero-sub" id="ncmAccSub">已登录网易云音乐</div>
+              <div class="acc-hero-sync" id="ncmAccSyncInfo">已同步个人歌单</div>
+            </div>
+          </div>
+          <div class="acc-btn-row">
+            <button class="btn-green" onclick="syncAccountPlaylists()"><svg class="i"><use href="#i-refresh"/></svg><span class="sync-btn-txt">同步刷新歌单</span></button>
+            <button class="btn-ghost" onclick="showLoginPanel('netease')"><svg class="i"><use href="#i-switch"/></svg>切换网易云</button>
+            <button class="btn-ghost btn-logout" id="btnNcmLogout" onclick="logoutAccount('netease')">退出网易云</button>
+          </div>
+        </div>
+
+        <div class="acc-prompt-card" id="ncmLoginPromptCard" style="display:none;">
+          <div>
+            <div class="apc-title">网易云音乐 · 未登录</div>
+            <div class="apc-sub">扫码登录即可同步「我喜欢的音乐」与黑胶无损音质</div>
+          </div>
+          <button class="btn-green" style="height:42px; padding:0 16px;" onclick="showLoginPanel('netease')"><svg class="i"><use href="#i-qr"/></svg>扫码登录</button>
+        </div>
+
+        <div class="acc-hero-card" id="qqAccountCard" style="display:none;">
           <div class="acc-hero-top">
             <img class="acc-avatar-lg" id="accAvatar" alt="" onerror="if(typeof DEFAULT_COVER!=='undefined'&&this.src!==DEFAULT_COVER)this.src=DEFAULT_COVER">
             <div class="acc-hero-meta">
@@ -1600,10 +1657,18 @@ html.ts-rot, html.ts-rot * { touch-action: none !important; }
             </div>
           </div>
           <div class="acc-btn-row">
-            <button class="btn-green" id="btnSyncMine" onclick="syncAccountPlaylists()"><svg class="i"><use href="#i-refresh"/></svg><span id="syncBtnTxt">同步刷新歌单</span></button>
-            <button class="btn-ghost" id="btnSwitchOrLogin" onclick="showLoginPanel()"><svg class="i"><use href="#i-switch"/></svg>切换账号</button>
-            <button class="btn-ghost btn-logout" id="btnLogout" onclick="logoutAccount()">退出登录</button>
+            <button class="btn-green" id="btnSyncMine" onclick="syncAccountPlaylists()"><svg class="i"><use href="#i-refresh"/></svg><span id="syncBtnTxt" class="sync-btn-txt">同步刷新歌单</span></button>
+            <button class="btn-ghost" id="btnSwitchOrLogin" onclick="showLoginPanel('qq')"><svg class="i"><use href="#i-switch"/></svg>切换账号</button>
+            <button class="btn-ghost btn-logout" id="btnLogout" onclick="logoutAccount('qq')">退出登录</button>
           </div>
+        </div>
+
+        <div class="acc-prompt-card" id="qqLoginPromptCard" style="display:none;">
+          <div>
+            <div class="apc-title">QQ 音乐 · 未登录</div>
+            <div class="apc-sub">扫码或绑定 QQ 号后可同时展示 QQ 音乐歌单</div>
+          </div>
+          <button class="btn-ghost" style="height:42px; padding:0 16px;" onclick="showLoginPanel('qq')"><svg class="i"><use href="#i-qr"/></svg>登录 QQ 音乐</button>
         </div>
 
         <div class="acc-setting-card">
@@ -1625,16 +1690,27 @@ html.ts-rot, html.ts-rot * { touch-action: none !important; }
             <button class="qual-btn" data-rq="raw" onclick="setRadioAudioMode('raw')">原声直通</button>
           </div>
         </div>
+
+        <div class="acc-setting-card" id="ncmApiCard">
+          <h3>网易云 API 服务地址</h3>
+          <p>默认连接软路由接口（如 http://192.168.100.1:3000）；修改保存后立即生效</p>
+          <div class="ncm-api-row">
+            <input id="ncmApiInput" class="ncm-api-input" maxlength="256" placeholder="http://192.168.100.1:3000">
+            <button class="btn-green" id="btnSaveNcmApi" onclick="saveNeteaseApiUrl()">保存</button>
+          </div>
+          <div class="acc-hero-sub" id="ncmApiStatus"></div>
+        </div>
       </div>
 
       <div id="loginPanelContainer" class="login-grid">
         <div class="qr-panel">
           <div class="seg">
-            <button class="chip active" id="modeBtnQq" onclick="switchQrMode('qq')">手机 QQ</button>
+            <button class="chip active" id="modeBtnNetease" onclick="switchQrMode('netease')">网易云</button>
+            <button class="chip" id="modeBtnQq" onclick="switchQrMode('qq')">手机 QQ</button>
             <button class="chip" id="modeBtnWx" onclick="switchQrMode('wx')">微信</button>
           </div>
           <div class="qr-img-box" id="qrBox">正在加载二维码…</div>
-          <div class="qr-status" id="qrStatus">请用手机 QQ 扫码登录</div>
+          <div class="qr-status" id="qrStatus">请用手机网易云音乐 App 扫码登录</div>
           <div style="display:flex; gap:8px; margin-top:12px; flex-wrap:wrap; justify-content:center;">
             <button class="btn-ghost" onclick="startQr()"><svg class="i"><use href="#i-refresh"/></svg>刷新二维码</button>
             <button class="btn-ghost" id="cancelLoginBtn" style="display:none;" onclick="cancelSwitchAccount()">返回账号信息</button>
@@ -1762,7 +1838,7 @@ let selectedPlId = '';
 let forceShowLogin = false;
 let qrTimer = null;
 let currentQrsig = '';
-let currentQrMode = 'qq';
+let currentQrMode = 'netease';
 let mineLoadedForAcc = '';
 let qrCreating = false;
 let qrRetryAfter = 0;
@@ -2573,7 +2649,7 @@ function safeImg(u) {
   if (typeof u !== 'string') return '';
   const s = u.trim();
   if (/[\x00-\x20\x7f\\]/.test(s)) return '';
-  return /^(?:https?:\/\/(?:[a-z0-9-]+\.)*(?:gtimg\.cn|qq\.com|qlogo\.cn|qpic\.cn)\/|data:image\/(?:png|jpeg|jpg|gif|webp|svg\+xml);base64,[A-Za-z0-9+/=]+$)/i.test(s) ? s : '';
+  return /^(?:https?:\/\/(?:[a-z0-9-]+\.)*(?:gtimg\.cn|qq\.com|qlogo\.cn|qpic\.cn|126\.net|163\.com)\/|data:image\/(?:png|jpeg|jpg|gif|webp|svg\+xml);base64,[A-Za-z0-9+/=]+$)/i.test(s) ? s : '';
 }
 
 // Playlist names from the backend carry a leading emoji (e.g. "❤️ 我喜欢"); strip it for the cleaner card UI.
@@ -2616,7 +2692,8 @@ function switchTab(tab) {
     if (wasSearch) requestAnimationFrame(() => centerActiveLyric(true));
   }
   if (tab !== 'account') {
-    if (state.user_profile && state.user_profile.userId && forceShowLogin) forceShowLogin = false;
+    const anyLogged = !!((state.user_profile && state.user_profile.userId) || (state.netease_profile && state.netease_profile.userId));
+    if (anyLogged && forceShowLogin) forceShowLogin = false;
     if (qrTimer) { clearInterval(qrTimer); qrTimer = null; }
     if (currentQrsig || qrCreating) {
       qrReqSeq++; currentQrsig = ''; qrCreating = false;
@@ -2625,7 +2702,7 @@ function switchTab(tab) {
     }
   } else {
     lastUiBoxMode = '';
-    updateAccountUi(state.user_profile);
+    updateAccountUi(state.user_profile, state.netease_profile);
   }
   if (tab === 'toplist' && !topLoading && toplistTracks.length === 0) {
     const chip = document.querySelector(`#toplistChips .chip[data-topid="${selectedTopId}"]`) || document.querySelector('#toplistChips .chip');
@@ -2985,7 +3062,7 @@ async function pollStatus(force = false, allowHidden = false) {
       updateRowHighlights(curMid, curTitle, curIdx, curFile);
     }
 
-    updateAccountUi(st.user_profile);
+    updateAccountUi(st.user_profile, st.netease_profile);
     if (typeof st.usb_sig === 'string') {
       const hasMntUsb = myUsbTracks.some(t => String(t.url || '').startsWith('/mnt/usb/'));
       if (lastUsbSig === null) {
@@ -3056,31 +3133,51 @@ async function pollStatus(force = false, allowHidden = false) {
 
 // 2026-11-06 Claude: one signature for both updateAccountUi and loadMine (round 19 stored a bare userId
 // in loadMine, which never matched and reloaded the playlists every poll)
-function accSigOf(profile) {
+function _oneAccSig(profile) {
   return profile && profile.userId ? `${profile.userId}:${profile.nickname}:${!!profile.isVip}:${profile.avatarUrl || ''}:${profile.loginType || ''}` : 'none';
+}
+function accSigOf(qqProfile, ncmProfile) {
+  return `${_oneAccSig(qqProfile)}|${_oneAccSig(ncmProfile)}`;
 }
 
 let lastQualSig = '';
-let logoutArmed = 0, logoutTimer = null;
+let logoutArmed = { qq: 0, netease: 0 }, logoutTimer = { qq: null, netease: null };
 
-function updateAccountUi(profile) {
-  const accSig = accSigOf(profile);
-  const logged = !!(profile && profile.userId);
+function updateAccountUi(profile, ncmProfile) {
+  const qqProf = profile || state.user_profile;
+  const ncmProf = ncmProfile !== undefined ? ncmProfile : state.netease_profile;
+  const accSig = accSigOf(qqProf, ncmProf);
+  const qqLogged = !!(qqProf && qqProf.userId);
+  const ncmLogged = !!(ncmProf && ncmProf.userId);
+  const logged = qqLogged || ncmLogged;
   const qLvl = state.quality_level || 'lossless';
   if (qLvl !== lastQualSig) {
     lastQualSig = qLvl;
     document.querySelectorAll('#qualSeg .qual-btn').forEach(b => b.classList.toggle('active', b.dataset.q === qLvl));
   }
 
+  if (typeof searchSourceUserSet !== 'undefined' && !searchSourceUserSet) {
+    const autoSrc = (ncmLogged || !qqLogged) ? 'netease' : 'qq';
+    if (typeof searchSource !== 'undefined' && searchSource !== autoSrc) setSearchSource(autoSrc, true);
+  }
+
+  const ncmCnt = myPlaylists.filter(x => x && x.source === '网易云').length;
+  const qqCnt = myPlaylists.filter(x => x && x.source !== '网易云').length;
+  const syncSuffix = myUsbTracks.length ? ` · 本机 / U盘 ${myUsbTracks.length} 首` : '';
+  const ncmSyncEl = document.getElementById('ncmAccSyncInfo');
+  if (ncmSyncEl && ncmLogged) {
+    const txt = (ncmCnt ? `已同步 ${ncmCnt} 个网易云歌单` : (loadingMine ? '正在同步歌单…' : '暂未读取到网易云歌单')) + syncSuffix;
+    if (ncmSyncEl.textContent !== txt) ncmSyncEl.textContent = txt;
+  }
   const syncEl = document.getElementById('accSyncInfo');
-  if (syncEl && logged) {
-    const parts = [];
-    if (myPlaylists.length) parts.push(`已同步 ${myPlaylists.length} 个在线歌单`);
-    else if (loadingMine) parts.push('正在同步歌单…');
-    else parts.push('暂未读取到公开歌单');
-    if (myUsbTracks.length) parts.push(`本机 / U盘 ${myUsbTracks.length} 首`);
-    const syncTxt = parts.join(' · ');
-    if (syncEl.textContent !== syncTxt) syncEl.textContent = syncTxt;
+  if (syncEl && qqLogged) {
+    const txt = (qqCnt ? `已同步 ${qqCnt} 个 QQ 歌单` : (loadingMine ? '正在同步歌单…' : '暂未读取到公开歌单')) + syncSuffix;
+    if (syncEl.textContent !== txt) syncEl.textContent = txt;
+  }
+
+  const ncmInput = document.getElementById('ncmApiInput');
+  if (ncmInput && document.activeElement !== ncmInput && state.netease_api_url && ncmInput.value !== state.netease_api_url) {
+    ncmInput.value = state.netease_api_url;
   }
 
   const pill = document.getElementById('userPill');
@@ -3095,14 +3192,24 @@ function updateAccountUi(profile) {
   const accViewTitle = document.getElementById('accViewTitle');
   const accStatePill = document.getElementById('accStatePill');
 
+  const ncmCard = document.getElementById('ncmAccountCard');
+  const ncmPrompt = document.getElementById('ncmLoginPromptCard');
+  const qqCard = document.getElementById('qqAccountCard');
+  const qqPrompt = document.getElementById('qqLoginPromptCard');
+  if (ncmCard) ncmCard.style.display = ncmLogged ? 'flex' : 'none';
+  if (ncmPrompt) ncmPrompt.style.display = (!ncmLogged && logged) ? 'flex' : 'none';
+  if (qqCard) qqCard.style.display = qqLogged ? 'flex' : 'none';
+  if (qqPrompt) qqPrompt.style.display = (!qqLogged && logged) ? 'flex' : 'none';
+
   if (accSig !== lastAccSig) {
     lastAccSig = accSig;
     favMid = '';
     favLiked = null;
     syncFav();
     railBtn.classList.toggle('logged', logged);
-    if (logged) {
-      const avaUrl = safeImg(profile.avatarUrl || '');
+    const primary = ncmLogged ? ncmProf : (qqLogged ? qqProf : null);
+    if (primary) {
+      const avaUrl = safeImg(primary.avatarUrl || '');
       if (avaUrl) {
         railAva.style.display = '';
         railAva.src = avaUrl;
@@ -3110,15 +3217,25 @@ function updateAccountUi(profile) {
       } else {
         railBtn.classList.remove('has-ava');
       }
-      pill.innerHTML = `${avaUrl ? `<img src="${esc(avaUrl)}" alt="" onerror="this.style.display='none'">` : `<span class="ph">${icon('i-user')}</span>`}<span>${esc(profile.nickname)}</span>`;
-      document.getElementById('accAvatar').src = avaUrl || DEFAULT_COVER;
-      document.getElementById('accName').textContent = profile.nickname || 'QQ音乐用户';
-      document.getElementById('vipTag').style.display = profile.isVip === false ? 'none' : '';
-      const lt = profile.loginType === 'wx' ? '微信扫码登录' : (profile.isVip === false ? 'QQ 号歌单绑定' : '手机 QQ 扫码登录');
-      document.getElementById('accSub').textContent = `账号 ID：${profile.userId} · ${lt}`;
+      pill.innerHTML = `${avaUrl ? `<img src="${esc(avaUrl)}" alt="" onerror="this.style.display='none'">` : `<span class="ph">${icon('i-user')}</span>`}<span>${esc(primary.nickname)}</span>`;
     } else {
       railBtn.classList.remove('has-ava');
       pill.innerHTML = `<span class="ph">${icon('i-qr')}</span><span>扫码登录</span>`;
+    }
+    if (ncmLogged) {
+      const nAva = safeImg(ncmProf.avatarUrl || '');
+      document.getElementById('ncmAccAvatar').src = nAva || DEFAULT_COVER;
+      document.getElementById('ncmAccName').textContent = ncmProf.nickname || '网易云用户';
+      document.getElementById('ncmVipTag').style.display = ncmProf.isVip ? '' : 'none';
+      document.getElementById('ncmAccSub').textContent = `账号 ID：${ncmProf.userId} · 网易云音乐扫码登录`;
+    }
+    if (qqLogged) {
+      const qAva = safeImg(qqProf.avatarUrl || '');
+      document.getElementById('accAvatar').src = qAva || DEFAULT_COVER;
+      document.getElementById('accName').textContent = qqProf.nickname || 'QQ音乐用户';
+      document.getElementById('vipTag').style.display = qqProf.isVip === false ? 'none' : '';
+      const lt = qqProf.loginType === 'wx' ? '微信扫码登录' : (qqProf.isVip === false ? 'QQ 号歌单绑定' : '手机 QQ 扫码登录');
+      document.getElementById('accSub').textContent = `账号 ID：${qqProf.userId} · ${lt}`;
     }
   }
 
@@ -3135,13 +3252,13 @@ function updateAccountUi(profile) {
 
   // Account tab: show Account Info if logged in (unless switching account); otherwise show QR login
   const showLogin = !logged || forceShowLogin;
-  const uiMode = `${logged ? 'in' : 'out'}:${showLogin ? 'qr' : 'info'}:${currentTab === 'account' ? 'vis' : 'hid'}`;
+  const uiMode = `${logged ? 'in' : 'out'}:${ncmLogged ? 'n' : '-'}${qqLogged ? 'q' : '-'}:${showLogin ? 'qr' : 'info'}:${currentTab === 'account' ? 'vis' : 'hid'}`;
   if (uiMode !== lastUiBoxMode) {
     lastUiBoxMode = uiMode;
     accInfoBox.style.display = showLogin ? 'none' : 'flex';
     loginBox.style.display = showLogin ? 'grid' : 'none';
-    accViewTitle.textContent = showLogin ? (logged ? '切换 QQ 音乐账号' : '扫码登录账号') : '账号信息';
-    accStatePill.textContent = logged ? (profile.isVip === false ? '公开歌单绑定' : '已授权登录') : '未登录';
+    accViewTitle.textContent = showLogin ? (logged ? '登录 / 切换账号' : '扫码登录账号') : '账号信息';
+    accStatePill.textContent = logged ? ((ncmLogged && qqLogged) ? '双平台已登录' : (ncmLogged ? '网易云已登录' : (qqProf.isVip === false ? '公开歌单绑定' : 'QQ 已登录'))) : '未登录';
     accStatePill.classList.toggle('out', !logged);
     cancelBtn.style.display = (showLogin && logged) ? 'inline-flex' : 'none';
   }
@@ -3161,14 +3278,20 @@ function updateAccountUi(profile) {
   }
 }
 
-function showLoginPanel() {
+function showLoginPanel(mode) {
   forceShowLogin = true;
   currentQrsig = '';
+  if (mode) {
+    currentQrMode = mode;
+    document.getElementById('modeBtnNetease').classList.toggle('active', mode === 'netease');
+    document.getElementById('modeBtnQq').classList.toggle('active', mode === 'qq');
+    document.getElementById('modeBtnWx').classList.toggle('active', mode === 'wx');
+  }
   if (currentTab !== 'account') {
     switchTab('account');
     return;
   }
-  updateAccountUi(state.user_profile);
+  updateAccountUi(state.user_profile, state.netease_profile);
   if (!qrCreating && !currentQrsig) startQr();
 }
 
@@ -3177,41 +3300,41 @@ function cancelSwitchAccount() {
   qrReqSeq++;
   currentQrsig = '';
   if (qrTimer) { clearInterval(qrTimer); qrTimer = null; }
-  updateAccountUi(state.user_profile);
+  updateAccountUi(state.user_profile, state.netease_profile);
 }
 
 async function syncAccountPlaylists() {
-  const txt = document.getElementById('syncBtnTxt');
-  if (txt) txt.textContent = '正在同步…';
+  document.querySelectorAll('.sync-btn-txt').forEach(el => { el.textContent = '正在同步…'; });
   await loadMine(true);
-  if (txt) {
-    txt.textContent = '已同步最新歌单';
-    setTimeout(() => { if (txt) txt.textContent = '同步刷新歌单'; }, 1800);
-  }
+  document.querySelectorAll('.sync-btn-txt').forEach(el => { el.textContent = '已同步最新歌单'; });
+  setTimeout(() => {
+    document.querySelectorAll('.sync-btn-txt').forEach(el => { el.textContent = '同步刷新歌单'; });
+  }, 1800);
 }
 
-function resetLogoutBtn() {
-  const b = document.getElementById('btnLogout');
+function resetLogoutBtn(platform = 'qq') {
+  const isNcm = platform === 'netease';
+  const b = document.getElementById(isNcm ? 'btnNcmLogout' : 'btnLogout');
   if (!b) return;
-  const armed = logoutArmed > 0 && monoNow() - logoutArmed < 5000;
-  b.textContent = armed ? '确认退出' : '退出登录';
+  const armed = logoutArmed[platform] > 0 && monoNow() - logoutArmed[platform] < 5000;
+  b.textContent = armed ? '确认退出' : (isNcm ? '退出网易云' : '退出登录');
   b.classList.toggle('armed', armed);
 }
 
-async function logoutAccount() {
-  if (!logoutArmed || monoNow() - logoutArmed > 5000) {
-    logoutArmed = monoNow();
-    resetLogoutBtn();
-    clearTimeout(logoutTimer);
-    logoutTimer = setTimeout(resetLogoutBtn, 5100);
+async function logoutAccount(platform = 'qq') {
+  if (!logoutArmed[platform] || monoNow() - logoutArmed[platform] > 5000) {
+    logoutArmed[platform] = monoNow();
+    resetLogoutBtn(platform);
+    clearTimeout(logoutTimer[platform]);
+    logoutTimer[platform] = setTimeout(() => resetLogoutBtn(platform), 5100);
     return;
   }
-  logoutArmed = 0;
-  clearTimeout(logoutTimer);
-  resetLogoutBtn();
+  logoutArmed[platform] = 0;
+  clearTimeout(logoutTimer[platform]);
+  resetLogoutBtn(platform);
   try {
     stateMutSeq++;
-    await api('/api/music/logout', {});
+    await api('/api/music/logout', { platform });
     mineReqSeq++;
     loadingMine = false;
     forceShowLogin = false;
@@ -3228,6 +3351,26 @@ async function logoutAccount() {
     await pollStatus(true);
     await loadMine(true);
   } catch (e) {}
+}
+
+async function saveNeteaseApiUrl() {
+  const inp = document.getElementById('ncmApiInput');
+  const stEl = document.getElementById('ncmApiStatus');
+  if (!inp) return;
+  const val = inp.value.trim();
+  if (stEl) stEl.textContent = '正在保存…';
+  try {
+    const r = await api('/api/music/netease/config', { api_url: val }, 6000);
+    if (r && r.ok) {
+      if (stEl) stEl.textContent = `已保存：${r.netease_api_url}`;
+      await pollStatus(true);
+      await loadMine(true);
+    } else if (stEl) {
+      stEl.textContent = (r && r.error) || '保存失败，请检查地址格式';
+    }
+  } catch (e) {
+    if (stEl) stEl.textContent = '地址格式无效或服务不可达';
+  }
 }
 
 async function setQualityLevel(q) {
@@ -3427,8 +3570,10 @@ function playlistCardHtml(p, idx) {
   const name = cleanName(p.name);
   const pCover = safeImg(p.cover || '') || DEFAULT_COVER;
   const pCnt = Number.isFinite(Number(p.count)) ? Math.max(0, Math.trunc(Number(p.count))) : 0;
+  const srcTxt = p.source === '网易云' ? '网易云' : 'QQ';
+  const srcCls = p.source === '网易云' ? 'ncm' : 'qq';
   return `<button class="pl-card ${active ? 'active' : ''}" data-plid="${esc(p.id)}" onclick="selectMyPlaylist(this.dataset.plid, '', this)">
-    <div class="pl-cover"><img src="${esc(pCover)}" loading="lazy" decoding="async" onerror="this.onerror=null;this.src=DEFAULT_COVER"><span class="cnt">${pCnt}</span></div>
+    <div class="pl-cover"><img src="${esc(pCover)}" loading="lazy" decoding="async" onerror="this.onerror=null;this.src=DEFAULT_COVER"><span class="pl-src ${srcCls}">${srcTxt}</span><span class="cnt">${pCnt}</span></div>
     <div class="pl-name">${esc(name)}</div>
   </button>`;
 }
@@ -3447,7 +3592,7 @@ async function loadMine(forceRefresh = false) {
     mineRetryAfter = 0;
     myPlaylists = res.playlists || [];
     myUsbTracks = res.usb_tracks || [];
-    mineLoadedForAcc = accSigOf(state.user_profile);
+    mineLoadedForAcc = accSigOf(state.user_profile, state.netease_profile);
 
     const box = document.getElementById('myPlaylistChips');
     let html = myPlaylists.map(playlistCardHtml).join('');
@@ -3475,7 +3620,7 @@ async function loadMine(forceRefresh = false) {
       document.getElementById('curPlTitle').textContent = '歌单歌曲';
       document.getElementById('myPlaylistSongsBox').innerHTML = '<div class="list-empty">没有找到公开歌单</div>';
     }
-    updateAccountUi(state.user_profile);
+    updateAccountUi(state.user_profile, state.netease_profile);
   } catch (e) {
     if (reqSeq === mineReqSeq) {
       mineLoadedForAcc = '';
@@ -3590,7 +3735,20 @@ async function quickSinger(name) {
 // Search results come 30 at a time; the next page loads when the list is scrolled near its end
 // (or via the button at the bottom). Tapping a song / 播放全部 plays everything loaded so far.
 const SEARCH_PAGE_SIZE = 30;
+let searchSource = 'netease', searchSourceUserSet = false;
 let searchQuery = '', searchPage = 0, searchHasMore = false, searchLoading = false, searchReqSeq = 0, searchFailed = false, searchRetryAfter = 0;
+
+function setSearchSource(src, silent = false) {
+  const next = src === 'qq' ? 'qq' : 'netease';
+  if (!silent) searchSourceUserSet = true;
+  if (searchSource === next) return;
+  searchSource = next;
+  const bN = document.getElementById('searchSrcNetease');
+  const bQ = document.getElementById('searchSrcQq');
+  if (bN) bN.classList.toggle('active', next === 'netease');
+  if (bQ) bQ.classList.toggle('active', next === 'qq');
+  if (!silent && searchQuery) doSearch();
+}
 
 async function doSearch() {
   if (pyBuf) {
@@ -3615,7 +3773,7 @@ async function loadMoreSearch() {
   searchFailed = false;
   searchLoading = true; updateSearchMore();
   try {
-    const res = await api('/api/music/search', { query: q, limit: SEARCH_PAGE_SIZE, page: searchPage + 1 });
+    const res = await api('/api/music/search', { query: q, limit: SEARCH_PAGE_SIZE, page: searchPage + 1, source: searchSource });
     if (reqSeq !== searchReqSeq) return;                 // a newer search replaced this one
     const seen = new Set(searchTracks.map(t => t.mid || t.url).filter(Boolean));
     const fresh = (res.tracks || []).filter(t => {
@@ -4002,6 +4160,7 @@ async function bindUin() {
 function switchQrMode(m) {
   if (m === currentQrMode && ((currentQrsig && qrTimer) || qrCreating)) return;
   currentQrMode = m;
+  document.getElementById('modeBtnNetease').classList.toggle('active', m === 'netease');
   document.getElementById('modeBtnQq').classList.toggle('active', m === 'qq');
   document.getElementById('modeBtnWx').classList.toggle('active', m === 'wx');
   startQr();
@@ -4037,7 +4196,7 @@ async function startQr() {
   currentQrsig = res.qrsig;
   const qrSrc = safeImg(res.qr_img || '');
   box.innerHTML = qrSrc ? `<img src="${esc(qrSrc)}" alt="扫码">` : '二维码格式异常，请点击刷新';
-  stEl.textContent = currentQrMode === 'wx' ? '打开手机微信扫一扫' : '打开手机 QQ 扫一扫';
+  stEl.textContent = currentQrMode === 'netease' ? '打开手机网易云音乐 App 扫一扫' : (currentQrMode === 'wx' ? '打开手机微信扫一扫' : '打开手机 QQ 扫一扫');
 
   let qrBusy = false;
   const qrStartedAt = monoNow();
@@ -4062,7 +4221,7 @@ async function startQr() {
       stEl.textContent = '二维码过期了，点「刷新二维码」';
       clearInterval(qrTimer); qrTimer = null;
     } else if (chk.code === 66) {
-      stEl.textContent = currentQrMode === 'wx' ? '等待微信扫码…' : '等待手机 QQ 扫码…';
+      stEl.textContent = myMode === 'netease' ? '等待网易云音乐扫码…' : (myMode === 'wx' ? '等待微信扫码…' : '等待手机 QQ 扫码…');
     } else if (chk.code === 67) {
       stEl.textContent = '已扫码，请在手机上点确认';
     } else if (chk.code === 0) {
@@ -4557,27 +4716,33 @@ async function toggleFav() {
     await toggleRadioStationFav(t.radio_id);
     return;
   }
-  if (!t || !t.mid || t.is_local) { favHud('先播放一首 QQ 音乐的歌', false); return; }
+  if (!t || !t.mid || t.is_local) { favHud('先播放一首在线歌曲', false); return; }
   if (favBusy) return;
   const mid = t.mid, prevLiked = favLiked, want = favLiked !== true;
   ++favReqSeq;
+  const isNcm = String(mid).startsWith('ncm:');
+  const likedPl = isNcm ? myPlaylists.find(x => String(x.id).startsWith('ncm:')) : myPlaylists.find(x => String(x.id) === 'dir_201');
+  const likedPlId = likedPl ? String(likedPl.id) : (isNcm ? '' : 'dir_201');
   favBusy = true; renderFav();
   try {
     const r = await api('/api/music/fav', { mid, on: want }, 12000);
     if (r && r.ok) {
       if (favMid === mid) favLiked = !!r.liked;
       favHud(r.message || (want ? '已加入「我喜欢」' : '已从「我喜欢」移除'), !!r.liked);
-      plTracksCache.delete('dir_201');
-      const p = myPlaylists.find(x => String(x.id) === 'dir_201');
-      if (p && typeof p.count === 'number' && prevLiked !== null && prevLiked !== !!r.liked) {
-        p.count = Math.max(0, p.count + (r.liked ? 1 : -1));
-        const cntEl = document.querySelector('#myPlaylistChips .pl-card[data-plid="dir_201"] .cnt');
-        if (cntEl) cntEl.textContent = String(p.count);
-      }
-      if (currentTab === 'mine' && String(selectedPlId) === 'dir_201') {
-        const cards = document.querySelectorAll('#myPlaylistChips .pl-card');
-        const idx = myPlaylists.findIndex(x => String(x.id) === 'dir_201');
-        selectMyPlaylist('dir_201', '我喜欢', cards[idx >= 0 ? idx : 0]);
+      if (likedPlId) {
+        plTracksCache.delete(likedPlId);
+        if (likedPl && typeof likedPl.count === 'number' && prevLiked !== null && prevLiked !== !!r.liked) {
+          likedPl.count = Math.max(0, likedPl.count + (r.liked ? 1 : -1));
+          const cards = document.querySelectorAll('#myPlaylistChips .pl-card');
+          const idx = myPlaylists.findIndex(x => String(x.id) === likedPlId);
+          const cntEl = cards[idx] && cards[idx].querySelector('.cnt');
+          if (cntEl) cntEl.textContent = String(likedPl.count);
+        }
+        if (currentTab === 'mine' && String(selectedPlId) === likedPlId) {
+          const cards = document.querySelectorAll('#myPlaylistChips .pl-card');
+          const idx = myPlaylists.findIndex(x => String(x.id) === likedPlId);
+          selectMyPlaylist(likedPlId, likedPl ? cleanName(likedPl.name) : '我喜欢', cards[idx >= 0 ? idx : 0]);
+        }
       }
     } else {
       favHud((r && r.error) || '没有成功，请再试一次', false);
@@ -4606,12 +4771,15 @@ async function toggleFav() {
 
 // ===== Round 109: local favorite & sleep timer =====
 function openFavPlaylist() {
-  selectedPlId = 'dir_201';
+  const isNcmCur = !!(state && state.track && String(state.track.mid || '').startsWith('ncm:'));
+  const ncmFav = myPlaylists.find(x => String(x.id).startsWith('ncm:'));
+  const qqFav = myPlaylists.find(x => String(x.id) === 'dir_201');
+  const target = (isNcmCur ? (ncmFav || qqFav) : (qqFav || ncmFav)) || myPlaylists[0];
+  selectedPlId = target ? String(target.id) : 'dir_201';
   if (currentTab !== 'mine') {
     switchTab('mine');
   }
-  if (myPlaylists.length > 0) {
-    const target = myPlaylists.find(x => String(x.id) === 'dir_201') || myPlaylists[0];
+  if (myPlaylists.length > 0 && target) {
     const idx = myPlaylists.indexOf(target);
     const cards = document.querySelectorAll('#myPlaylistChips .pl-card');
     selectMyPlaylist(target.id, cleanName(target.name), cards[idx >= 0 ? idx : 0]);

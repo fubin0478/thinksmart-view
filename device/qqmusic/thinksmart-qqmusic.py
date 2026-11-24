@@ -732,6 +732,9 @@ def load_config() -> dict:
             'cookies_str': '',
             'quality_level': 'lossless',
             'user_profile': None,
+            'netease_api_url': os.environ.get('NETEASE_API_URL', 'http://192.168.100.1:3000'),
+            'netease_cookie': '',
+            'netease_profile': None,
         }
         _CFG_SIG = sig
         return dict(_CFG_CACHE)
@@ -745,9 +748,11 @@ _DIR201_LOCK = threading.Lock()
 def save_config(cfg: dict):
     global _CFG_CACHE, _CFG_SIG, _DIR201_CACHE, _DIR201_GEN, _LAST_REFRESH_FAIL
     auth_changed = True
+    ncm_changed = True
     with _CFG_LOCK:
         if isinstance(_CFG_CACHE, dict):
             auth_changed = any(cfg.get(k) != _CFG_CACHE.get(k) for k in ('uin', 'qm_keyst', 'cookies_str', 'quality_level'))
+            ncm_changed = any(cfg.get(k) != _CFG_CACHE.get(k) for k in ('netease_cookie', 'netease_api_url'))
         _CFG_CACHE = dict(cfg)
         tmp = CONFIG_PATH.parent / f'.{CONFIG_PATH.name}.{os.getpid()}.{threading.get_ident()}.tmp'
         created = False
@@ -785,6 +790,9 @@ def save_config(cfg: dict):
         with _DIR201_LOCK:
             _DIR201_CACHE = None
             _DIR201_GEN += 1
+    if ncm_changed and '_NETEASE_LIKED_LOCK' in globals():
+        with _NETEASE_LIKED_LOCK:
+            _NETEASE_LIKED_CACHE.update({'uid': '', 'ts': 0.0, 'ids': set()})
 
 
 def _is_wx_login(cfg: dict, extra_cookie: str = '') -> bool:
@@ -2313,6 +2321,407 @@ def qq_playlist_tracks(dissid: str, limit: int = 160) -> list:
     except Exception as e:
         log.warning('qq_playlist_tracks error: %s', e)
     return []
+
+
+# ---- NetEase Cloud Music Integration (via self-hosted NeteaseCloudMusicApi) ----
+
+_NETEASE_DEFAULT_API_URL = 'http://192.168.100.1:3000'
+_NETEASE_NO_PROXY_OPENER = urllib.request.build_opener(urllib.request.ProxyHandler({}))
+_NETEASE_MID_RE = re.compile(r'^ncm:(\d{1,16})$')
+_NETEASE_LIKED_LOCK = threading.Lock()
+_NETEASE_LIKED_CACHE = {'uid': '', 'ts': 0.0, 'ids': set()}
+
+
+def _is_netease_mid(mid) -> bool:
+    return isinstance(mid, str) and bool(_NETEASE_MID_RE.fullmatch(mid.strip()))
+
+
+def _netease_song_id(mid) -> str:
+    m = _NETEASE_MID_RE.fullmatch(mid.strip()) if isinstance(mid, str) else None
+    return m.group(1) if m else ''
+
+
+def _normalize_netease_api_url(raw) -> str:
+    if not isinstance(raw, str):
+        return ''
+    u = raw.strip()
+    if not u or len(u) > 512 or any(ord(c) <= 0x20 or ord(c) == 0x7f for c in u):
+        return ''
+    try:
+        sp = urllib.parse.urlsplit(u)
+        _ = sp.port
+    except ValueError:
+        return ''
+    if sp.scheme.lower() not in ('http', 'https'):
+        return ''
+    if sp.username is not None or sp.password is not None or sp.query or sp.fragment:
+        return ''
+    if not (sp.hostname or '').strip():
+        return ''
+    path = (sp.path or '').rstrip('/')
+    return f'{sp.scheme.lower()}://{sp.netloc}{path}'
+
+
+def _netease_base_url(cfg: dict = None) -> str:
+    c = cfg if isinstance(cfg, dict) else load_config()
+    for candidate in (c.get('netease_api_url'), os.environ.get('NETEASE_API_URL'), _NETEASE_DEFAULT_API_URL):
+        norm = _normalize_netease_api_url(candidate)
+        if norm:
+            return norm
+    return _NETEASE_DEFAULT_API_URL
+
+
+def _https_url(u: str) -> str:
+    s = str(u or '').strip()
+    if s.startswith('http://'):
+        return 'https://' + s[7:]
+    return s
+
+
+def _netease_api(path: str, params: dict = None, cookie: str = None, timeout: float = 8.0, use_post: bool = False) -> dict:
+    base = _netease_base_url()
+    ts = int(time.time() * 1000)
+    clean_path = path if path.startswith('/') else f'/{path}'
+    if use_post or cookie:
+        url = f'{base}{clean_path}?timestamp={ts}'
+        payload = dict(params or {})
+        if cookie:
+            payload['cookie'] = cookie
+        req = urllib.request.Request(
+            url,
+            data=json.dumps(payload, ensure_ascii=False).encode('utf-8'),
+            headers={'Content-Type': 'application/json; charset=utf-8', 'User-Agent': UA},
+            method='POST',
+        )
+    else:
+        q = dict(params or {})
+        q['timestamp'] = ts
+        url = f'{base}{clean_path}?{urllib.parse.urlencode(q)}'
+        req = urllib.request.Request(url, headers={'User-Agent': UA})
+    try:
+        with _NETEASE_NO_PROXY_OPENER.open(req, timeout=timeout) as r:
+            return json.loads(_read_http_bytes(r).decode('utf-8', errors='replace'))
+    except urllib.error.HTTPError as e:
+        try:
+            body = _read_http_bytes(e).decode('utf-8', errors='replace')
+            parsed = json.loads(body)
+            if isinstance(parsed, dict):
+                return parsed
+        except Exception:
+            pass
+        log.warning('netease_api %s HTTP %s', clean_path, e.code)
+        return {'code': int(getattr(e, 'code', 500) or 500), 'message': f'HTTP {e.code}'}
+    except Exception as e:
+        log.warning('netease_api %s error: %s', clean_path, e)
+        return {'_error': str(e)}
+
+
+def _parse_lrc_text(raw: str) -> list:
+    lines = []
+    for line in str(raw or '').splitlines():
+        s = html.unescape(line.strip())
+        tags = re.findall(r'\[(\d+):(\d+(?:\.\d+)?)\]', s)
+        if not tags:
+            continue
+        txt = re.sub(r'^(?:\[\d+:\d+(?:\.\d+)?\])+', '', s).strip()
+        if txt and not txt.startswith('offset:'):
+            for mm, ss in tags:
+                lines.append({'time': round(int(mm) * 60 + float(ss), 2), 'text': txt})
+    lines.sort(key=lambda x: x['time'])
+    return lines
+
+
+def _format_netease_song(s: dict, default_q: str = None) -> dict:
+    sid = str(s.get('id') or '').strip()
+    artists_raw = s.get('ar') or s.get('artists') or []
+    artists = [a.get('name', '').strip() for a in artists_raw if isinstance(a, dict) and a.get('name')]
+    al = s.get('al') or s.get('album') or {}
+    if not isinstance(al, dict):
+        al = {}
+    cover = _https_url(al.get('picUrl') or '')
+    thumb = f'{cover}?param=200y200' if cover else ''
+    try:
+        dur_ms = float(s.get('dt') or s.get('duration') or 0)
+    except (TypeError, ValueError):
+        dur_ms = 0.0
+    duration = max(0, int(round(dur_ms / 1000.0))) if dur_ms > 0 else 0
+    try:
+        fee = int(s.get('fee') or 0)
+    except (TypeError, ValueError):
+        fee = 0
+    return {
+        'mid': f'ncm:{sid}' if sid else '',
+        'media_mid': '',
+        'title': str(s.get('name') or ''),
+        'artist': ' / '.join(artists),
+        'album': str(al.get('name') or ''),
+        'cover': cover,
+        'thumb': thumb,
+        'duration': duration,
+        'vip': fee == 1,
+        'source': '网易云',
+        'quality': default_q or _default_quality_label(),
+        'url': None,
+        'is_local': False,
+        'is_live': False,
+    }
+
+
+def netease_qr_create() -> dict:
+    res_key = _netease_api('/login/qr/key')
+    if res_key.get('_error'):
+        return {'ok': False, 'error': f'无法连接网易云接口 ({_netease_base_url()})'}
+    unikey = str(((res_key.get('data') or {}).get('unikey')) or '').strip()
+    if not unikey:
+        return {'ok': False, 'error': res_key.get('message') or '获取网易云二维码 Key 失败'}
+    res_qr = _netease_api('/login/qr/create', {'key': unikey, 'qrimg': True}, use_post=True)
+    qr_img = str(((res_qr.get('data') or {}).get('qrimg')) or '').strip()
+    if not qr_img:
+        return {'ok': False, 'error': res_qr.get('message') or '生成网易云二维码失败'}
+    return {'ok': True, 'mode': 'netease', 'qrsig': unikey, 'qr_img': qr_img}
+
+
+def netease_qr_check(unikey: str) -> dict:
+    key = str(unikey or '').strip()
+    if not key:
+        return {'ok': False, 'error': '二维码参数缺失'}
+    res = _netease_api('/login/qr/check', {'key': key}, use_post=True)
+    if res.get('_error'):
+        return {'ok': False, 'error': f'无法连接网易云接口 ({_netease_base_url()})'}
+    try:
+        code = int(res.get('code'))
+    except (TypeError, ValueError):
+        return {'ok': False, 'error': res.get('message') or '网易云二维码状态异常'}
+    if code == 800:
+        return {'ok': True, 'code': 65, 'message': res.get('message') or '二维码已过期'}
+    if code == 801:
+        return {'ok': True, 'code': 66, 'message': res.get('message') or '等待扫码'}
+    if code == 802:
+        return {'ok': True, 'code': 67, 'message': res.get('message') or '已扫码，请在手机上点确认'}
+    if code == 803:
+        cookie = str(res.get('cookie') or '').strip()
+        if not cookie:
+            return {'ok': False, 'error': '未获取到网易云登录凭据，请重试'}
+        st = _netease_api('/login/status', cookie=cookie, use_post=True)
+        st_data = st.get('data') if isinstance(st.get('data'), dict) else st
+        prof = st_data.get('profile') if isinstance(st_data.get('profile'), dict) else {}
+        acct = st_data.get('account') if isinstance(st_data.get('account'), dict) else {}
+        uid = str(prof.get('userId') or acct.get('id') or '').strip()
+        nick = str(prof.get('nickname') or acct.get('userName') or '网易云用户').strip()
+        ava = _https_url(str(prof.get('avatarUrl') or ''))
+        try:
+            vip_type = int(prof.get('vipType') or acct.get('vipType') or 0)
+        except (TypeError, ValueError):
+            vip_type = 0
+        profile = {
+            'userId': uid,
+            'nickname': nick,
+            'avatarUrl': ava,
+            'vipType': vip_type,
+            'isVip': vip_type > 0,
+            'loginType': 'netease',
+        }
+        with _CFG_LOCK:
+            cfg = load_config()
+            cfg['netease_cookie'] = cookie
+            cfg['netease_profile'] = profile
+            save_config(cfg)
+        return {'ok': True, 'code': 0, 'message': '登录成功', 'profile': profile}
+    return {'ok': True, 'code': code, 'message': res.get('message') or '二维码已失效'}
+
+
+def netease_logout() -> dict:
+    with _CFG_LOCK:
+        cfg = load_config()
+        cfg['netease_cookie'] = ''
+        cfg['netease_profile'] = None
+        save_config(cfg)
+    with _NETEASE_LIKED_LOCK:
+        _NETEASE_LIKED_CACHE.update({'uid': '', 'ts': 0.0, 'ids': set()})
+    return {'ok': True}
+
+
+def netease_user_playlists() -> list:
+    cfg = load_config()
+    cookie = str(cfg.get('netease_cookie') or '').strip()
+    prof = cfg.get('netease_profile') if isinstance(cfg.get('netease_profile'), dict) else {}
+    uid = str(prof.get('userId') or '').strip()
+    if not cookie or not uid:
+        return []
+    res = _netease_api('/user/playlist', {'uid': uid, 'limit': 50}, cookie=cookie, use_post=True)
+    raw_list = res.get('playlist') or []
+    out = []
+    for idx, pl in enumerate(raw_list):
+        if not isinstance(pl, dict):
+            continue
+        pid = str(pl.get('id') or '').strip()
+        if not pid:
+            continue
+        raw_name = str(pl.get('name') or '').strip() or '未命名歌单'
+        try:
+            cnt = int(pl.get('trackCount') or 0)
+        except (TypeError, ValueError):
+            cnt = 0
+        is_liked = (idx == 0 or pl.get('specialType') == 5)
+        name = raw_name if raw_name.startswith(('❤️', '🎵')) else (f'❤️ {raw_name}' if is_liked else f'🎵 {raw_name}')
+        out.append({
+            'id': f'ncm:{pid}',
+            'name': name,
+            'count': cnt,
+            'cover': _https_url(str(pl.get('coverImgUrl') or '')),
+            'source': '网易云',
+        })
+    return out
+
+
+def netease_playlist_tracks(pl_id: str, limit: int = 200) -> list:
+    pid = str(pl_id or '').strip()
+    if pid.startswith('ncm:'):
+        pid = pid[4:]
+    if not pid.isdigit():
+        return []
+    cfg = load_config()
+    cookie = str(cfg.get('netease_cookie') or '').strip()
+    res = _netease_api('/playlist/track/all', {'id': pid, 'limit': limit, 'offset': 0}, cookie=cookie, timeout=10.0, use_post=True)
+    songs = res.get('songs') or []
+    dq = _default_quality_label(cfg)
+    return [_format_netease_song(s, default_q=dq) for s in songs[:limit] if isinstance(s, dict) and s.get('id')]
+
+
+def resolve_netease_url(song_id: str) -> dict:
+    sid = str(song_id or '').strip()
+    if sid.startswith('ncm:'):
+        sid = sid[4:]
+    if not sid.isdigit():
+        return {}
+    cfg = load_config()
+    cookie = str(cfg.get('netease_cookie') or '').strip()
+    ql = cfg.get('quality_level', 'lossless')
+    if ql == 'lossless':
+        levels = ['lossless', 'exhigh', 'standard']
+    elif ql == 'hq':
+        levels = ['exhigh', 'higher', 'standard']
+    else:
+        levels = ['standard']
+    for lvl in levels:
+        res = _netease_api('/song/url/v1', {'id': sid, 'level': lvl}, cookie=cookie, timeout=8.0, use_post=True)
+        items = res.get('data') or []
+        for item in items:
+            if not isinstance(item, dict):
+                continue
+            url = str(item.get('url') or '').strip()
+            if not url or item.get('freeTrialInfo'):
+                continue
+            ret_lvl = str(item.get('level') or lvl).lower()
+            ret_type = str(item.get('type') or '').lower()
+            if ret_lvl in ('jymaster', 'sky', 'jyeffect', 'hires'):
+                q_label = 'Hi-Res 无损'
+            elif ret_lvl == 'lossless' or ret_type == 'flac':
+                q_label = 'SQ 无损'
+            elif ret_lvl in ('exhigh', 'higher'):
+                q_label = 'HQ 极高'
+            else:
+                q_label = '标准'
+            out = {
+                'url': url,
+                'quality': q_label,
+                'source': '网易云',
+                '_url_ts': time.monotonic(),
+            }
+            try:
+                t_ms = float(item.get('time') or 0)
+                if t_ms > 0:
+                    out['duration'] = max(1, int(round(t_ms / 1000.0)))
+            except (TypeError, ValueError):
+                pass
+            return out
+    return {}
+
+
+def netease_lyric(song_id: str) -> list:
+    sid = str(song_id or '').strip()
+    if sid.startswith('ncm:'):
+        sid = sid[4:]
+    if not sid.isdigit():
+        return []
+    cache_key = f'ncm:{sid}'
+    with _LYRIC_LOCK:
+        cached = _LYRIC_CACHE.get(cache_key)
+    if cached is not None:
+        return list(cached)
+    res = _netease_api('/lyric', {'id': sid}, timeout=5.0)
+    raw = str(((res.get('lrc') or {}).get('lyric')) or '')
+    lines = _parse_lrc_text(raw)
+    if lines or res.get('code') == 200:
+        with _LYRIC_LOCK:
+            if len(_LYRIC_CACHE) >= 64:
+                _LYRIC_CACHE.pop(next(iter(_LYRIC_CACHE)), None)
+            _LYRIC_CACHE[cache_key] = list(lines)
+    return lines
+
+
+def netease_search(query: str, limit: int = 25, page: int = 1) -> list:
+    q = str(query or '').strip()
+    if not q:
+        return []
+    cfg = load_config()
+    cookie = str(cfg.get('netease_cookie') or '').strip()
+    offset = max(0, (max(1, int(page)) - 1) * max(1, int(limit)))
+    res = _netease_api('/cloudsearch', {'keywords': q, 'type': 1, 'limit': limit, 'offset': offset}, cookie=cookie, timeout=8.0, use_post=True)
+    songs = ((res.get('result') or {}).get('songs')) or []
+    dq = _default_quality_label(cfg)
+    return [_format_netease_song(s, default_q=dq) for s in songs[:limit] if isinstance(s, dict) and s.get('id')]
+
+
+def _netease_liked_ids(force: bool = False):
+    cfg = load_config()
+    cookie = str(cfg.get('netease_cookie') or '').strip()
+    prof = cfg.get('netease_profile') if isinstance(cfg.get('netease_profile'), dict) else {}
+    uid = str(prof.get('userId') or '').strip()
+    if not cookie or not uid:
+        return None
+    now = time.monotonic()
+    if not force:
+        with _NETEASE_LIKED_LOCK:
+            if _NETEASE_LIKED_CACHE['uid'] == uid and (now - _NETEASE_LIKED_CACHE['ts']) < 60.0:
+                return set(_NETEASE_LIKED_CACHE['ids'])
+    res = _netease_api('/likelist', {'uid': uid}, cookie=cookie, timeout=8.0, use_post=True)
+    if res.get('code') != 200 or not isinstance(res.get('ids'), list):
+        return None
+    ids = {str(x) for x in res['ids']}
+    with _NETEASE_LIKED_LOCK:
+        _NETEASE_LIKED_CACHE.update({'uid': uid, 'ts': now, 'ids': set(ids)})
+    return ids
+
+
+def netease_fav_state(song_id: str):
+    sid = _netease_song_id(song_id) or (str(song_id).strip() if str(song_id).strip().isdigit() else '')
+    if not sid:
+        return None
+    ids = _netease_liked_ids()
+    if ids is None:
+        return None
+    return sid in ids
+
+
+def netease_fav_set(song_id: str, on: bool) -> dict:
+    sid = _netease_song_id(song_id) or (str(song_id).strip() if str(song_id).strip().isdigit() else '')
+    if not sid:
+        return {'ok': False, 'error': '无效的网易云歌曲 ID'}
+    cfg = load_config()
+    cookie = str(cfg.get('netease_cookie') or '').strip()
+    if not cookie:
+        return {'ok': False, 'error': '请先扫码登录网易云音乐'}
+    res = _netease_api('/like', {'id': sid, 'like': bool(on)}, cookie=cookie, timeout=8.0, use_post=True)
+    if res.get('code') == 200:
+        with _NETEASE_LIKED_LOCK:
+            if on:
+                _NETEASE_LIKED_CACHE['ids'].add(sid)
+            else:
+                _NETEASE_LIKED_CACHE['ids'].discard(sid)
+            _NETEASE_LIKED_CACHE['ts'] = time.monotonic()
+        return {'ok': True, 'mid': f'ncm:{sid}', 'liked': bool(on)}
+    return {'ok': False, 'error': res.get('message') or '网易云收藏操作失败'}
 
 
 def local_lib_sig() -> str:
@@ -5547,6 +5956,8 @@ class QQMusicEngine:
             'sleep_session': sess_pub,
             'sleep_preview': prev_pub,
             'user_profile': cfg.get('user_profile'),
+            'netease_profile': cfg.get('netease_profile'),
+            'netease_api_url': _netease_base_url(cfg),
             'quality_level': cfg.get('quality_level', 'lossless'),
             'radio_audio_mode': _get_radio_audio_mode(cfg),
             'max_cache_mb': cfg.get('max_cache_mb', 200),
@@ -6357,7 +6768,7 @@ class QQMusicEngine:
         # Fetch synchronized lyrics in background
         if need_lrc and track.get('mid'):
             def _load_lrc(m, g):
-                lrc = qq_lyric(m)
+                lrc = netease_lyric(_netease_song_id(m)) if _is_netease_mid(m) else qq_lyric(m)
                 changed = False
                 with self._lock:
                     if g == self._gen and lrc != self.lyrics:
@@ -6373,10 +6784,11 @@ class QQMusicEngine:
             st_live = RADIO_BY_ID.get(str(track.get('radio_id') or ''))
             if st_live and st_live.get('kind') == 'live':
                 track['url'] = st_live['url']
-        # Refresh signed remote URL if missing or older than 1 hour (vkey expiry)
+        # Refresh signed remote URL if missing or expired (20m for NetEase, 1h for QQ vkey)
         elif not track.get('is_local') and track.get('url'):
+            url_ttl = 1200 if _is_netease_mid(track.get('mid')) else 3600
             try:
-                url_expired = track.get('_url_ts') is None or time.monotonic() - float(track['_url_ts']) > 3600
+                url_expired = track.get('_url_ts') is None or time.monotonic() - float(track['_url_ts']) > url_ttl
             except (TypeError, ValueError):
                 url_expired = True
             if url_expired:
@@ -6419,7 +6831,10 @@ class QQMusicEngine:
                         self._starting_gen = -1
                     return
             if track.get('mid'):
-                vk = resolve_qq_vkey(track['mid'], track.get('media_mid', ''))
+                if _is_netease_mid(track['mid']):
+                    vk = resolve_netease_url(_netease_song_id(track['mid']))
+                else:
+                    vk = resolve_qq_vkey(track['mid'], track.get('media_mid', ''))
                 if vk and vk.get('url'):
                     track.update(vk)
             if not track.get('url') and not track.get('radio_id'):
@@ -7339,7 +7754,7 @@ def make_app(ctrl_pool=None) -> web.Application:
         )
         return web.json_response(res)
 
-    _SAFE_COVER_RE = re.compile(r'^https?://(?:[a-z0-9-]+\.)*(?:gtimg\.cn|qq\.com|qlogo\.cn|qpic\.cn)/', re.I)
+    _SAFE_COVER_RE = re.compile(r'^https?://(?:[a-z0-9-]+\.)*(?:gtimg\.cn|qq\.com|qlogo\.cn|qpic\.cn|126\.net|163\.com)/', re.I)
 
     def _safe_cover_url(u: str) -> str:
         if not isinstance(u, str) or not u:
@@ -7499,12 +7914,14 @@ def make_app(ctrl_pool=None) -> web.Application:
         except (TypeError, ValueError, OverflowError):
             page = 1
         q_raw = body.get('query', '')
+        src = str(body.get('source') or 'qq').strip().lower()
+        search_fn = netease_search if src == 'netease' else qq_search
         tracks = await asyncio.get_running_loop().run_in_executor(
-            None, qq_search, q_raw, limit, page
+            None, search_fn, q_raw, limit, page
         )
         hm_key = (q_raw if isinstance(q_raw, str) else '', limit, page)
         with _SEARCH_HM_LOCK:
-            has_more = _SEARCH_HAS_MORE.get(hm_key, len(tracks) >= limit)
+            has_more = (len(tracks) >= limit) if src == 'netease' else _SEARCH_HAS_MORE.get(hm_key, len(tracks) >= limit)
         # a full page (or backend meta hint when grp=1 collapses duplicates) means there may be more
         return web.json_response({'ok': True, 'tracks': tracks, 'page': page, 'has_more': bool(has_more)})
 
@@ -7524,17 +7941,25 @@ def make_app(ctrl_pool=None) -> web.Application:
 
     async def playlists(_req):
         loop = asyncio.get_running_loop()
-        pls, usb = await asyncio.gather(
+        pls_ncm, pls_qq, usb = await asyncio.gather(
+            loop.run_in_executor(None, netease_user_playlists),
             loop.run_in_executor(None, qq_user_playlists),
             loop.run_in_executor(None, search_local, '', 500),
         )
+        pls = list(pls_ncm) + [
+            (dict(p, source=p.get('source') or 'QQ音乐') if isinstance(p, dict) else p)
+            for p in pls_qq
+        ]
         return web.json_response({'ok': True, 'playlists': pls, 'usb_tracks': usb})
 
     async def playlist_tracks(req):
         body = await _json_body(req)
-        tracks = await asyncio.get_running_loop().run_in_executor(
-            None, qq_playlist_tracks, str(body.get('id', ''))
-        )
+        pl_id = str(body.get('id', ''))
+        loop = asyncio.get_running_loop()
+        if pl_id.startswith('ncm:'):
+            tracks = await loop.run_in_executor(None, netease_playlist_tracks, pl_id[4:])
+        else:
+            tracks = await loop.run_in_executor(None, qq_playlist_tracks, pl_id)
         return web.json_response({'ok': True, 'tracks': tracks})
 
     async def fav_api(req):
@@ -7544,27 +7969,40 @@ def make_app(ctrl_pool=None) -> web.Application:
         else:
             body = await _json_body(req)
             mid = str(body.get('mid') or '')
-        if not re.fullmatch(r'[0-9A-Za-z]{6,24}', mid):
-            return web.json_response({'ok': False, 'error': '不是 QQ 音乐的歌，没法收藏'}, status=400)
+        is_ncm = _is_netease_mid(mid)
+        if not is_ncm and not re.fullmatch(r'[0-9A-Za-z]{6,24}', mid):
+            return web.json_response({'ok': False, 'error': '不是在线平台的歌，没法收藏'}, status=400)
         loop = asyncio.get_running_loop()
         if req.method == 'GET':
-            liked = await loop.run_in_executor(None, qq_fav_state, mid)
+            fn = (lambda m: netease_fav_state(_netease_song_id(m))) if is_ncm else qq_fav_state
+            liked = await loop.run_in_executor(None, fn, mid)
             return web.json_response({'ok': True, 'mid': mid, 'liked': liked})
         if not isinstance(body.get('on'), bool):
             return web.json_response({'ok': False, 'error': '要收藏还是取消没说清'}, status=400)
-        res = await loop.run_in_executor(None, qq_fav_set, mid, body['on'])
+        if is_ncm:
+            res = await loop.run_in_executor(None, netease_fav_set, _netease_song_id(mid), body['on'])
+        else:
+            res = await loop.run_in_executor(None, qq_fav_set, mid, body['on'])
         return web.json_response(res)
 
     async def qr_create(req):
         body = await _json_body(req)
-        res = await asyncio.get_running_loop().run_in_executor(None, qq_qr_create, body.get('mode', 'qq'))
+        mode = body.get('mode', 'qq')
+        loop = asyncio.get_running_loop()
+        if mode == 'netease':
+            res = await loop.run_in_executor(None, netease_qr_create)
+        else:
+            res = await loop.run_in_executor(None, qq_qr_create, mode)
         return web.json_response(res)
 
     async def qr_check(req):
         body = await _json_body(req)
-        res = await asyncio.get_running_loop().run_in_executor(
-            None, qq_qr_check, body.get('qrsig', ''), body.get('mode', 'qq')
-        )
+        mode = body.get('mode', 'qq')
+        loop = asyncio.get_running_loop()
+        if mode == 'netease':
+            res = await loop.run_in_executor(None, netease_qr_check, body.get('qrsig', ''))
+        else:
+            res = await loop.run_in_executor(None, qq_qr_check, body.get('qrsig', ''), mode)
         return web.json_response(res)
 
     async def bind_uin(req):
@@ -7572,9 +8010,32 @@ def make_app(ctrl_pool=None) -> web.Application:
         res = await asyncio.get_running_loop().run_in_executor(None, qq_bind_uin, body.get('input', ''))
         return web.json_response(res)
 
-    async def logout(_req):
-        res = await asyncio.get_running_loop().run_in_executor(None, qq_logout)
+    async def logout(req):
+        body = await _json_body(req)
+        platform = str(body.get('platform') or 'qq').strip().lower()
+        loop = asyncio.get_running_loop()
+        if platform == 'netease':
+            res = await loop.run_in_executor(None, netease_logout)
+        elif platform == 'all':
+            await loop.run_in_executor(None, netease_logout)
+            res = await loop.run_in_executor(None, qq_logout)
+        else:
+            res = await loop.run_in_executor(None, qq_logout)
         return web.json_response(res)
+
+    async def netease_config_api(req):
+        body = await _json_body(req)
+        raw_url = body.get('api_url', '')
+        norm = _normalize_netease_api_url(raw_url)
+        if not norm:
+            return web.json_response({'ok': False, 'error': '请输入有效的 http/https 地址'}, status=400)
+        def _save_ncm_url():
+            with _CFG_LOCK:
+                cfg = load_config()
+                cfg['netease_api_url'] = norm
+                save_config(cfg)
+        await asyncio.get_running_loop().run_in_executor(None, _save_ncm_url)
+        return web.json_response({'ok': True, 'netease_api_url': norm})
 
     async def set_quality(req):
         body = await _json_body(req)
@@ -7831,6 +8292,7 @@ def make_app(ctrl_pool=None) -> web.Application:
     app.router.add_post('/api/music/qr/check', qr_check)
     app.router.add_post('/api/music/bind', bind_uin)
     app.router.add_post('/api/music/logout', logout)
+    app.router.add_post('/api/music/netease/config', netease_config_api)
     app.router.add_post('/api/music/quality', set_quality)
     app.router.add_get('/api/music/sleep', sleep_timer)
     app.router.add_post('/api/music/sleep', sleep_timer)
