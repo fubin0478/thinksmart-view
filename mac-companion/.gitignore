@@ -1,0 +1,14 @@
+# Local model weights, custom voice clips & runtime secrets (never commit)
+models/
+*.gguf
+*.safetensors
+voices/*.wav
+voices/voices.json
+asr_context.txt
+homophones.json
+public_gateway.json
+*.key
+secret
+.backups/
+*.bak*
+*.log

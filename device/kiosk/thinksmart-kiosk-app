@@ -1,0 +1,23 @@
+#!/bin/sh
+# Autolaunched by Weston for the thinksmart-kiosk session: start the proximity wake
+# daemon, then keep the kiosk browser running for as long as this Weston runs.
+
+# No desktop session reaches graphical-session.target, so start it here
+systemctl --user start vcnl4200-proximity-daemon.service 2>/dev/null
+
+# Exit together with Weston instead of relaunching the browser forever as an orphan
+STOP=0
+trap 'STOP=1' TERM INT HUP
+WESTON_PID=$PPID
+MY_UID=$(id -u)
+WEBKIT_PAT='(^|/)WebKit(Web|Network)Process( |$)'
+while [ "$STOP" = 0 ] && kill -0 "$WESTON_PID" 2>/dev/null; do
+    # Ensure no stopped (T) WebKit subprocesses from a previous run remain orphaned
+    pkill -CONT -u "$MY_UID" -f "$WEBKIT_PAT" 2>/dev/null || true
+    pkill -TERM -u "$MY_UID" -f "$WEBKIT_PAT" 2>/dev/null || true
+    /usr/bin/python3 -B /usr/local/bin/thinksmart-kiosk.py
+    pkill -CONT -u "$MY_UID" -f "$WEBKIT_PAT" 2>/dev/null || true
+    pkill -TERM -u "$MY_UID" -f "$WEBKIT_PAT" 2>/dev/null || true
+    [ "$STOP" = 0 ] || break
+    sleep 2
+done

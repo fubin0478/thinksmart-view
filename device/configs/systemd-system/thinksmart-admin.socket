@@ -1,0 +1,9 @@
+[Unit]
+Description=ThinkSmart View Admin Console Socket (loopback :8097)
+
+[Socket]
+ListenStream=127.0.0.1:8097
+NoDelay=true
+
+[Install]
+WantedBy=sockets.target

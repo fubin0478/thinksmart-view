@@ -1,0 +1,20 @@
+[Unit]
+Description=TAS5782M chip warm-up (one-shot, pre-initializes DSP at login)
+Documentation=https://github.com/local/cd18781y-audio
+After=wireplumber.service pipewire-pulse.service pipewire.service
+Requires=wireplumber.service pipewire.service
+Wants=pipewire-pulse.service
+
+[Service]
+Type=oneshot
+TimeoutStartSec=25
+RemainAfterExit=no
+# Wait a moment for WirePlumber to finish connecting to PipeWire
+# Stream 700 ms of pure digital silence (48 kHz S16LE stereo) to force PCM open
+# and clock BCLK long enough (>546 ms) for TAS5782M DSP init without audible sound.
+# With node.pause-on-idle=false already set, PipeWire keeps the PCM running
+# after this exits, so the chip stays in PLAY mode indefinitely.
+ExecStart=/bin/bash -c 'SINK=""; for i in $(seq 1 30); do SINK=$(timeout 2 pactl list sinks short 2>/dev/null | while read -r _ n _; do if [ "$${n#alsa_output.platform-c051000.sound-card}" != "$n" ]; then echo "$n"; break; fi; done); [ -n "$SINK" ] && break; sleep 0.5; done; [ -n "$SINK" ] && dd if=/dev/zero bs=4800 count=28 status=none | timeout 5 pacat --playback --device="$SINK" --raw --format=s16le --rate=48000 --channels=2 2>/dev/null || true'
+
+[Install]
+WantedBy=default.target wireplumber.service

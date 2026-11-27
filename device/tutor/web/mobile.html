@@ -1,0 +1,2819 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover">
+<meta name="color-scheme" content="light dark">
+<meta name="theme-color" content="#e3dbce" id="metaThemeColor">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="AI拍题">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<title>AI 手机拍题讲题</title>
+<link rel="manifest" href="manifest.json">
+<link rel="icon" href="favicon.svg" type="image/svg+xml">
+<link rel="icon" href="apple-touch-icon.png" sizes="180x180" type="image/png">
+<link rel="apple-touch-icon" href="apple-touch-icon.png">
+<script>
+/* 2026-11-20 Claude：管理后台（/admin/）嵌入本页时，深浅色由后台统一切换 */
+try { if (window.parent !== window && new URLSearchParams(location.search).get('embed') === '1') document.documentElement.dataset.embed = '1'; } catch (e) {}
+(function() {
+  try {
+    var saved = localStorage.getItem('tutor-mob-theme') || 'auto';
+    var dark = saved === 'dark' || (saved === 'auto' && window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches);
+    document.documentElement.setAttribute('data-theme', dark ? 'dark' : 'light');
+    var m = document.getElementById('metaThemeColor');
+    if (m) m.setAttribute('content', dark ? '#0a101c' : '#e3dbce');
+  } catch (e) {}
+})();
+</script>
+<style>
+:root, html[data-theme="light"] {
+  --bg: #e3dbce;
+  --panel: #f6f2ea;
+  --panel-2: #e8e1d5;
+  --line: #d4cab9;
+  --text: #18191b;
+  --muted: #4a4d55;
+  --dim: #6e727b;
+  --accent: #0b7470;
+  --accent-ink: #faf8f4;
+  --amber: #9c5b08;
+  --amber-bg: #fdf4e2;
+  --aux: #d63336;
+  --ok-bg: #d4eae3;
+}
+html[data-theme="dark"] {
+  --bg: #0b1322;
+  --panel: #131e33;
+  --panel-2: #1b2944;
+  --line: #283a5a;
+  --text: #eef3fb;
+  --muted: #a6b4cc;
+  --dim: #7686a3;
+  --accent: #22d68a;
+  --accent-ink: #062115;
+  --amber: #f5c04a;
+  --amber-bg: #241d10;
+  --aux: #ff6b6b;
+  --ok-bg: #142c22;
+}
+* { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
+html, body {
+  min-height: 100%; background: var(--bg); color: var(--text);
+  font-family: -apple-system, BlinkMacSystemFont, "PingFang SC", "Noto Sans CJK SC", sans-serif;
+  font-weight: 400; overflow-x: hidden;
+}
+button, input, select { font-family: inherit; touch-action: manipulation; }
+.wrap {
+  max-width: 540px; margin: 0 auto;
+  padding: calc(12px + env(safe-area-inset-top, 0px)) 14px calc(24px + env(safe-area-inset-bottom, 0px));
+  display: flex; flex-direction: column; gap: 12px;
+}
+.hdr {
+  display: flex; align-items: center; justify-content: space-between; gap: 8px;
+}
+.hdr-left { display: flex; align-items: center; gap: 8px; min-width: 0; }
+.logo-badge {
+  width: 36px; height: 36px; border-radius: 10px; background: var(--accent); color: var(--accent-ink);
+  display: inline-flex; align-items: center; justify-content: center; font-size: 18px; font-weight: 700; flex-shrink: 0;
+}
+.hdr-title { font-size: 18px; line-height: 22px; font-weight: 700; white-space: nowrap; }
+.hdr-sub { font-size: 12px; line-height: 16px; color: var(--muted); display: flex; align-items: center; gap: 5px; margin-top: 2px; }
+.dot { width: 8px; height: 8px; border-radius: 50%; background: var(--dim); display: inline-block; flex-shrink: 0; }
+.dot.ok { background: var(--accent); }
+.hdr-right { display: flex; align-items: center; gap: 6px; flex-shrink: 0; }
+.mini-link, .theme-btn {
+  height: 32px; padding: 0 10px; border-radius: 9px; border: 1px solid var(--line);
+  background: var(--panel); color: var(--text); font-size: 12px; line-height: 30px; font-weight: 700;
+  text-decoration: none; cursor: pointer; white-space: nowrap;
+}
+
+.card {
+  background: var(--panel); border: 1px solid var(--line); border-radius: 16px;
+  padding: 13px; display: flex; flex-direction: column; gap: 10px;
+}
+.card-hd { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+.card-hd b { font-size: 15px; line-height: 20px; font-weight: 700; }
+.badge-pill {
+  height: 24px; padding: 0 8px; border-radius: 7px; background: var(--ok-bg); color: var(--accent);
+  border: 1px solid var(--accent); font-size: 12px; line-height: 22px; font-weight: 700; white-space: nowrap;
+}
+
+.pick-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
+.pick-btn {
+  height: 54px; border-radius: 14px; border: 2px solid var(--line); background: var(--panel-2);
+  color: var(--text); font-size: 15px; line-height: 20px; font-weight: 700;
+  display: flex; align-items: center; justify-content: center; gap: 7px; cursor: pointer; position: relative;
+}
+.pick-btn.primary { background: var(--accent); color: var(--accent-ink); border-color: var(--accent); }
+.pick-btn:active { opacity: 0.86; }
+.pick-btn input[type="file"] { position: absolute; width: 1px; height: 1px; opacity: 0; pointer-events: none; }
+.paste-btn {
+  height: 38px; border-radius: 11px; border: 1px dashed var(--line); background: var(--panel-2);
+  color: var(--muted); font-size: 13px; line-height: 36px; font-weight: 700;
+  display: flex; align-items: center; justify-content: center; gap: 6px; cursor: pointer; width: 100%;
+}
+.paste-btn:active { opacity: 0.85; }
+.tray-pills { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
+.tray-pill {
+  height: 28px; padding: 0 9px; border-radius: 8px; border: 1px solid var(--line);
+  background: var(--panel-2); color: var(--text); font-size: 12px; line-height: 26px; font-weight: 700; cursor: pointer;
+}
+.tray-pill.on { border-color: var(--accent); background: var(--ok-bg); color: var(--accent); }
+
+.reuse-bar {
+  display: none; align-items: center; justify-content: space-between; gap: 8px;
+  padding: 9px 11px; border-radius: 11px; background: var(--amber-bg); border: 1px solid var(--amber);
+  font-size: 13px; line-height: 18px; color: var(--text);
+}
+.reuse-bar.show { display: flex; }
+.reuse-btn {
+  height: 30px; padding: 0 10px; border-radius: 8px; border: 1px solid var(--amber);
+  background: var(--panel); color: var(--amber); font-size: 12px; line-height: 28px; font-weight: 700;
+  cursor: pointer; white-space: nowrap; flex-shrink: 0;
+}
+
+.crop-section { display: none; flex-direction: column; gap: 10px; }
+.crop-section.show { display: flex; }
+.stage-box {
+  width: 100%; height: 320px; border-radius: 14px; background: #141923; border: 1px solid var(--line);
+  position: relative; overflow: hidden; display: flex; align-items: center; justify-content: center;
+  touch-action: none; user-select: none;
+}
+html[data-theme="light"] .stage-box { background: #dad2c4; }
+#pagePreviewCanvas { display: block; max-width: 100%; max-height: 100%; }
+.crop-layer { position: absolute; pointer-events: auto; touch-action: none; }
+.crop-win {
+  position: absolute; border: 2px solid #22d68a; border-radius: 6px;
+  box-shadow: 0 0 0 1600px rgba(0, 0, 0, 0.44); background: rgba(34, 214, 138, 0.06);
+}
+.crop-lbl {
+  position: absolute; top: -24px; left: 0; height: 21px; padding: 0 7px; border-radius: 5px;
+  background: #22d68a; color: #062115; font-size: 12px; line-height: 21px; font-weight: 700; white-space: nowrap;
+}
+.c-hdl {
+  position: absolute; width: 32px; height: 32px; display: flex; align-items: center; justify-content: center;
+}
+.c-hdl::after {
+  content: ""; width: 12px; height: 12px; border-radius: 3px; background: #22d68a; border: 2px solid #062115;
+}
+.c-hdl.nw { left: -16px; top: -16px; }
+.c-hdl.ne { right: -16px; top: -16px; }
+.c-hdl.sw { left: -16px; bottom: -16px; }
+.c-hdl.se { right: -16px; bottom: -16px; }
+.done-mark {
+  position: absolute; border: 1px dashed #0b7470; border-radius: 5px;
+  background: rgba(11, 116, 112, 0.12); pointer-events: none;
+}
+html[data-theme="dark"] .done-mark { border-color: #22d68a; background: rgba(34, 214, 138, 0.12); }
+.done-mark span {
+  position: absolute; right: 2px; top: 2px; height: 18px; padding: 0 5px; border-radius: 4px;
+  background: var(--accent); color: var(--accent-ink); font-size: 11px; line-height: 18px; font-weight: 700;
+}
+
+.tool-row { display: flex; align-items: center; gap: 7px; flex-wrap: wrap; }
+.t-chip {
+  height: 34px; padding: 0 10px; border-radius: 9px; border: 1px solid var(--line);
+  background: var(--panel-2); color: var(--text); font-size: 13px; line-height: 32px; font-weight: 700;
+  cursor: pointer; white-space: nowrap; flex: 1; text-align: center;
+}
+.t-chip.on { border-color: var(--accent); background: var(--ok-bg); color: var(--accent); }
+
+.crop-live-card {
+  padding: 8px 10px; border-radius: 11px; background: var(--panel-2); border: 1px solid var(--line);
+  display: flex; flex-direction: column; gap: 6px;
+}
+.crop-live-hd {
+  display: flex; align-items: center; justify-content: space-between; gap: 6px;
+  font-size: 12px; line-height: 16px; color: var(--muted);
+}
+.crop-live-hd b { color: var(--text); font-weight: 700; }
+.crop-live-wrap {
+  width: 100%; max-height: 118px; border-radius: 8px; background: #fcf9f2; border: 1px solid var(--line);
+  overflow: hidden; display: flex; align-items: center; justify-content: center; padding: 4px;
+}
+#cropLiveCanvas { max-width: 100%; max-height: 108px; display: block; }
+
+.opt-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; }
+.sel-ctl {
+  height: 38px; padding: 0 10px; border-radius: 10px; border: 1px solid var(--line);
+  background: var(--panel-2); color: var(--text); font-size: 13px; font-weight: 700; width: 100%;
+}
+.note-inp {
+  width: 100%; height: 40px; padding: 0 12px; border-radius: 10px; border: 1px solid var(--line);
+  background: var(--panel-2); color: var(--text); font-size: 14px;
+}
+.note-inp::placeholder { color: var(--dim); }
+
+.act-col { display: flex; flex-direction: column; gap: 9px; margin-top: 2px; }
+.btn-explain {
+  height: 50px; border-radius: 13px; border: none; background: var(--accent); color: var(--accent-ink);
+  font-size: 16px; line-height: 22px; font-weight: 700; cursor: pointer;
+  display: flex; align-items: center; justify-content: center; gap: 6px;
+}
+.btn-stage {
+  height: 44px; border-radius: 12px; border: 2px solid var(--amber); background: var(--amber-bg);
+  color: var(--amber); font-size: 14px; line-height: 20px; font-weight: 700; cursor: pointer;
+  display: flex; align-items: center; justify-content: center; gap: 6px;
+}
+.btn-explain:disabled, .btn-stage:disabled { opacity: 0.52; cursor: default; }
+
+.live-box { display: flex; flex-direction: column; gap: 7px; }
+.live-q {
+  padding: 9px 11px; border-radius: 10px; background: var(--panel-2); border: 1px solid var(--line);
+  font-size: 13px; line-height: 19px; color: var(--text);
+}
+.live-meta { font-size: 12px; line-height: 18px; color: var(--muted); display: flex; justify-content: space-between; gap: 8px; flex-wrap: wrap; }
+.live-acts { display: none; align-items: center; gap: 7px; flex-wrap: wrap; }
+.live-acts.show { display: flex; }
+
+.toast {
+  position: fixed; left: 16px; right: 16px; bottom: calc(20px + env(safe-area-inset-bottom, 0px));
+  max-width: 480px; margin: 0 auto; padding: 11px 15px; border-radius: 12px;
+  background: #18191b; color: #faf8f4; border: 2px solid var(--accent);
+  font-size: 14px; line-height: 20px; font-weight: 700; text-align: center;
+  opacity: 0; pointer-events: none; transition: opacity .16s ease; z-index: 60;
+}
+.toast.show { opacity: 1; }
+
+/* ===== 2026-11-18 Claude：和手机对讲页一套样子——深色用主页的底色和蓝色强调，顶栏同样的图标按钮，图标代替表情，字不小于 13px ===== */
+html[data-theme="dark"] { --bg: #0a101c; --panel: #121a2b; --panel-2: #1d2840; --line: #232e45; --text: #f2f5fb; --muted: #b4bfd4; --dim: #8a96ad;
+  --accent: #5ab8ff; --accent-ink: #0a101c; --ok-bg: #17243a; }
+svg.mi { width: 20px; height: 20px; fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; flex-shrink: 0; vertical-align: -4px; }
+.logo-badge { display: none; }
+.hdr-title { font-size: 20px; line-height: 26px; }
+.hdr-sub { font-size: 13px; line-height: 18px; }
+.mini-link, .theme-btn { height: 44px; min-width: 44px; padding: 0 12px; border-radius: 14px; border: none; background: var(--panel);
+  font-size: 14px; line-height: 44px; display: inline-flex; align-items: center; justify-content: center; gap: 4px; }
+.theme-btn { width: 44px; padding: 0; }
+.card-hd b { font-size: 16px; }
+.live-meta, .live-meta span { font-size: 13px; }
+.paste-btn, .sel-ctl { min-height: 44px; }
+/* ===== 2026-11-18 Claude 第二轮：「家里大屏现在」里的按钮恢复成正常文字按钮（第一轮把它们和顶栏图标按钮一起限成了 44px 宽），
+   框题工具、作业夹页码换成线条图标，按钮 40–44px、字不小于 13px ===== */
+.theme-btn { width: auto; padding: 0 12px; }
+#btnTheme { width: 44px; padding: 0; }
+.card-hd #btnNextSamePage { height: 40px; padding: 0 12px; border-radius: 12px; background: var(--panel-2); border: 1px solid var(--line); font-size: 14px; flex-shrink: 0; }
+.live-acts.show { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+#liveStageActs #liveTrayPills { grid-column: 1 / -1; }
+#liveStageActs #liveTrayPills:empty { display: none; }
+#liveStageActs .theme-btn { width: 100%; height: 44px; border-radius: 12px; background: var(--panel-2); border: 1px solid var(--line); font-size: 14px; }
+#liveStageActs #btnRemoteVariant { grid-column: 1 / -1; background: var(--ok-bg); border-color: var(--accent); color: var(--accent); }
+html[data-theme="light"] .t-chip.on, html[data-theme="light"] .tray-pill.on, html[data-theme="light"] #liveStageActs #btnRemoteVariant { color: #07524e; }
+#liveStageActs #btnClearStage.armed { color: var(--aux); border-color: var(--aux); }
+.card-hd b, .crop-live-hd b, #reuseTxt { display: inline-flex; align-items: center; gap: 6px; }
+.t-chip { height: 40px; font-size: 14px; line-height: 38px; display: inline-flex; align-items: center; justify-content: center; gap: 4px; }
+.t-chip svg.mi, .tray-pill svg.mi, #liveStageActs svg.mi, #btnNextSamePage svg.mi, .crop-live-hd svg.mi, #reuseTxt svg.mi { width: 18px; height: 18px; }
+.tray-pill { height: 36px; padding: 0 12px; border-radius: 10px; font-size: 14px; line-height: 34px; display: inline-flex; align-items: center; gap: 4px; }
+.reuse-bar.show { flex-direction: column; align-items: stretch; }
+.reuse-btn { height: 36px; font-size: 14px; line-height: 34px; }
+.crop-lbl { top: -26px; height: 23px; font-size: 13px; line-height: 23px; }
+.crop-live-hd { font-size: 13px; }
+.done-mark span { height: 20px; font-size: 12px; line-height: 20px; }
+html[data-theme="dark"] .done-mark span { background: #22d68a; color: #062115; }
+/* ===== 2026-11-18 Claude 第四轮：适配——框题区随屏幕变高（小手机仍是 320，大手机和平板更大，框题更准）；平板和电脑上内容列和对讲页一样 680 宽 ===== */
+.stage-box { height: clamp(320px, 52vh, 560px); }
+@media (min-width: 720px) { .wrap { max-width: 680px; } }
+/* ===== 2026-11-18 Claude 第五轮：学段 / 讲解下拉框和补充说明输入框字大一点、够高（原来 13–14px、高 40） ===== */
+.sel-ctl { font-size: 15px; }
+.note-inp { height: 44px; font-size: 15px; }
+/* ===== 2026-11-18 R24：拍草稿找错因、整页智能题块快选框、远程错题复测与家长伴学递锦囊 ===== */
+.btn-draft {
+  height: 46px; border-radius: 12px; border: 2px solid var(--accent); background: var(--ok-bg);
+  color: var(--accent); font-size: 15px; line-height: 20px; font-weight: 700; cursor: pointer;
+  display: flex; align-items: center; justify-content: center; gap: 6px;
+}
+html[data-theme="light"] .btn-draft { color: #07524e; border-color: #0b7470; background: #e6f4f1; }
+.btn-draft:disabled { opacity: 0.52; cursor: default; }
+.cand-mark {
+  position: absolute; border: 2px dashed rgba(245, 166, 35, 0.82); border-radius: 7px;
+  background: rgba(245, 166, 35, 0.06); pointer-events: none;
+}
+.cand-pill {
+  position: absolute; left: -2px; top: -22px; height: 20px; padding: 0 7px; border-radius: 6px;
+  border: none; background: #f5a623; color: #1b1302; font-size: 12px; line-height: 20px;
+  font-weight: 700; cursor: pointer; pointer-events: auto; white-space: nowrap;
+}
+#liveStageActs #btnRemoteMistake { grid-column: 1 / -1; background: var(--amber-bg); border-color: var(--amber); color: var(--amber); }
+.nudge-box {
+  margin-top: 4px; padding: 10px; border-radius: 11px; background: var(--panel-2); border: 1px solid var(--line);
+  display: none; flex-direction: column; gap: 8px;
+}
+.nudge-box.show { display: flex; }
+.nudge-hd { font-size: 13px; line-height: 18px; color: var(--muted); font-weight: 700; display: flex; align-items: center; gap: 5px; }
+.nudge-chips { display: flex; flex-wrap: wrap; gap: 6px; }
+.nudge-chip {
+  height: 34px; padding: 0 10px; border-radius: 9px; border: 1px solid var(--line); background: var(--panel);
+  color: var(--text); font-size: 13px; line-height: 32px; font-weight: 700; cursor: pointer;
+}
+.nudge-row { display: flex; gap: 6px; align-items: center; }
+.nudge-inp {
+  flex: 1; height: 40px; padding: 0 10px; border-radius: 10px; border: 1px solid var(--line);
+  background: var(--panel); color: var(--text); font-size: 14px; font-weight: 400;
+}
+.nudge-send {
+  height: 40px; padding: 0 14px; border-radius: 10px; border: none; background: var(--accent);
+  color: var(--accent-ink); font-size: 14px; font-weight: 700; cursor: pointer; flex-shrink: 0;
+}
+/* ===== 2026-11-18 R25：整页先批后讲错题巡航 + 一键导出 A4 错题重练清卷（支持微信长按保存/打印） ===== */
+.btn-check-page {
+  height: 46px; border-radius: 12px; border: 2px solid var(--amber); background: var(--amber-bg);
+  color: var(--amber); font-size: 15px; line-height: 20px; font-weight: 700; cursor: pointer;
+  display: flex; align-items: center; justify-content: center; gap: 6px;
+}
+.btn-check-page:disabled { opacity: 0.52; cursor: default; }
+.chk-ok-mark {
+  position: absolute; border: 2px solid #22d68a; border-radius: 6px;
+  background: rgba(34, 214, 138, 0.09); pointer-events: none;
+}
+html[data-theme="light"] .chk-ok-mark { border-color: #0b7470; background: rgba(11, 116, 112, 0.08); }
+.chk-ok-mark span {
+  position: absolute; right: 2px; top: -20px; height: 19px; padding: 0 6px; border-radius: 5px;
+  background: #22d68a; color: #062115; font-size: 11px; line-height: 19px; font-weight: 700; white-space: nowrap;
+}
+html[data-theme="light"] .chk-ok-mark span { background: #0b7470; color: #ffffff; }
+.chk-fix-mark {
+  position: absolute; border: 2px solid #ff6b6b; border-radius: 6px;
+  background: rgba(255, 107, 107, 0.12); pointer-events: none;
+}
+html[data-theme="light"] .chk-fix-mark { border-color: #d63336; background: rgba(214, 51, 54, 0.09); }
+.chk-pill {
+  position: absolute; left: -2px; top: -22px; height: 20px; padding: 0 7px; border-radius: 6px;
+  border: none; background: #ff6b6b; color: #1f0607; font-size: 12px; line-height: 20px;
+  font-weight: 700; cursor: pointer; pointer-events: auto; white-space: nowrap;
+}
+html[data-theme="light"] .chk-pill { background: #d63336; color: #ffffff; }
+#liveStageActs #btnPrintSheet { grid-column: 1 / -1; background: var(--panel-2); border-color: var(--accent); color: var(--accent); }
+html[data-theme="light"] #liveStageActs #btnPrintSheet { color: #07524e; border-color: #0b7470; }
+.print-modal {
+  position: fixed; inset: 0; background: rgba(10, 16, 28, 0.78); z-index: 55;
+  display: none; align-items: center; justify-content: center; padding: 14px; overflow-y: auto;
+}
+.print-modal.show { display: flex; }
+.print-panel {
+  width: 100%; max-width: 520px; max-height: 90vh; overflow-y: auto; border-radius: 18px;
+  background: var(--panel); border: 1px solid var(--line); padding: 14px;
+  display: flex; flex-direction: column; gap: 10px;
+}
+.print-hd { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+.print-hd b { font-size: 16px; line-height: 22px; font-weight: 700; }
+.print-modes { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+.pm-btn {
+  height: 40px; border-radius: 10px; border: 1px solid var(--line); background: var(--panel-2);
+  color: var(--text); font-size: 14px; font-weight: 700; cursor: pointer;
+}
+.pm-btn.on { border-color: var(--accent); background: var(--ok-bg); color: var(--accent); }
+html[data-theme="light"] .pm-btn.on { color: #07524e; border-color: #0b7470; }
+.print-list { max-height: 176px; overflow-y: auto; display: flex; flex-direction: column; gap: 6px; }
+.print-item {
+  padding: 8px 10px; border-radius: 10px; background: var(--panel-2); border: 1px solid var(--line);
+  display: flex; align-items: center; gap: 8px; font-size: 13px; line-height: 18px; font-weight: 700; cursor: pointer;
+}
+.print-item input { width: 18px; height: 18px; flex-shrink: 0; }
+.print-preview-wrap {
+  display: none; flex-direction: column; gap: 8px; align-items: center; padding: 8px;
+  border-radius: 12px; background: var(--panel-2); border: 1px solid var(--line);
+}
+.print-preview-wrap.show { display: flex; }
+.print-preview-wrap img {
+  width: 100%; max-height: 360px; object-fit: contain; border-radius: 6px;
+  background: #ffffff; border: 1px solid var(--line);
+}
+.print-dl-row { width: 100%; display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+.print-dl-btn {
+  height: 42px; border-radius: 10px; border: 1px solid var(--accent); background: var(--ok-bg);
+  color: var(--accent); font-size: 14px; line-height: 40px; font-weight: 700;
+  text-align: center; text-decoration: none; cursor: pointer;
+}
+html[data-theme="light"] .print-dl-btn { color: #07524e; border-color: #0b7470; }
+@media print {
+  body.print-sheet-ready > *:not(#printModal) { display: none !important; }
+  body.print-sheet-ready #printModal { position: static !important; display: block !important; background: #ffffff !important; padding: 0 !important; }
+  body.print-sheet-ready .print-panel > *:not(#printPreviewWrap) { display: none !important; }
+  body.print-sheet-ready .print-panel { max-width: none !important; max-height: none !important; border: none !important; padding: 0 !important; background: #ffffff !important; }
+  body.print-sheet-ready #printPreviewWrap { display: block !important; border: none !important; padding: 0 !important; background: #ffffff !important; }
+  body.print-sheet-ready #printPreviewWrap .print-dl-row, body.print-sheet-ready #printPreviewHint { display: none !important; }
+  body.print-sheet-ready #printPreviewImg { width: 100% !important; max-height: none !important; border: none !important; }
+}
+/* ===== 2026-11-20 Claude：嵌在管理后台里 ===== */
+html[data-embed] #btnTheme { display: none; }
+@media (max-width: 400px) {
+  .wrap { padding: calc(10px + env(safe-area-inset-top, 0px)) 10px calc(20px + env(safe-area-inset-bottom, 0px)); gap: 10px; }
+  .hdr-title { font-size: 16px; line-height: 20px; }
+  .pick-btn { height: 48px; font-size: 14px; }
+}
+.mob-more-btn {
+  height: 38px; border-radius: 10px; border: 1px solid var(--line); background: var(--panel-2);
+  color: var(--muted); font-size: 13px; line-height: 36px; font-weight: 700; cursor: pointer; width: 100%;
+}
+.mob-more { display: flex; flex-direction: column; gap: 9px; margin-top: 2px; }
+.mob-more.collapsed { display: none; }
+.mob-cw-panel {
+  padding: 10px; border-radius: 11px; background: var(--panel-2); border: 1px solid var(--line);
+  display: flex; flex-direction: column; gap: 8px;
+}
+.mob-cw-hd {
+  display: flex; align-items: center; justify-content: space-between; gap: 8px; flex-wrap: wrap;
+  font-size: 13px; line-height: 18px; font-weight: 700; color: var(--text);
+}
+.mob-cw-acts { display: flex; gap: 6px; flex-wrap: wrap; }
+.mob-cw-btn {
+  height: 36px; padding: 0 10px; border-radius: 10px; border: 1px solid var(--line); background: var(--panel);
+  color: var(--text); font-size: 13px; line-height: 34px; font-weight: 700; cursor: pointer;
+}
+.mob-cw-btn.on { border-color: var(--accent); background: var(--ok-bg); color: var(--accent); }
+html[data-theme="light"] .mob-cw-btn.on { color: #07524e; border-color: #0b7470; }
+.mob-cw-chips { display: flex; flex-direction: column; gap: 6px; }
+.mob-cw-chip {
+  width: 100%; text-align: left; padding: 8px 10px; border-radius: 10px; border: 1px solid var(--line);
+  background: var(--panel); color: var(--text); font-size: 13px; line-height: 19px; font-weight: 700; cursor: pointer;
+}
+.mob-cw-chip.warn { border-color: var(--amber); background: var(--amber-bg); }
+.mob-cw-chip.ok { border-color: var(--accent); }
+.mob-cw-hint {
+  padding: 9px 11px; border-radius: 10px; background: var(--panel-2); border: 1px solid var(--line);
+  font-size: 13px; line-height: 20px; font-weight: 700; color: var(--text); display: flex; flex-direction: column; gap: 4px;
+}
+/* 2026-11-24 手机端自助听写粘词与拍纸秒批（仅 400/700 字重 · 整数 px · 按钮 >= 44px） */
+.mob-dc-body { display: flex; flex-direction: column; gap: 10px; }
+.mob-dc-body.collapsed { display: none; }
+.mob-dc-ta {
+  width: 100%; min-height: 78px; padding: 10px 12px; border-radius: 12px;
+  border: 1px solid var(--line); background: var(--bg); color: var(--text);
+  font-size: 15px; line-height: 22px; font-weight: 400; resize: vertical;
+}
+.mob-dc-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+.mob-dc-btn {
+  min-height: 46px; padding: 8px 12px; border-radius: 12px; border: 1px solid var(--line);
+  background: var(--panel-2); color: var(--text); font-size: 14px; line-height: 20px;
+  font-weight: 700; cursor: pointer; display: inline-flex; align-items: center; justify-content: center; gap: 6px;
+}
+.mob-dc-btn.primary {
+  background: var(--accent); border-color: var(--accent); color: var(--accent-ink); font-size: 15px;
+}
+.mob-dc-btn.grade {
+  border-color: var(--amber); background: var(--amber-bg); color: var(--text); font-size: 15px;
+}
+.mob-dc-status {
+  padding: 10px 12px; border-radius: 12px; border: 1px solid var(--line);
+  background: var(--panel-2); display: flex; flex-direction: column; gap: 8px;
+  font-size: 14px; line-height: 20px; font-weight: 400; color: var(--text);
+}
+.mob-dc-wrong {
+  padding: 8px 10px; border-radius: 10px; border: 1px solid var(--amber);
+  background: var(--amber-bg); font-size: 13px; line-height: 19px; font-weight: 700; color: var(--text);
+}
+
+</style>
+</head>
+<body>
+<svg width="0" height="0" style="position:absolute" aria-hidden="true">
+  <symbol id="mi-sun" viewBox="0 0 24 24"><circle cx="12" cy="12" r="4"/><path d="M12 2.5v2M12 19.5v2M2.5 12h2M19.5 12h2M5.3 5.3l1.4 1.4M17.3 17.3l1.4 1.4M5.3 18.7l1.4-1.4M17.3 6.7l1.4-1.4"/></symbol>
+  <symbol id="mi-moon" viewBox="0 0 24 24"><path d="M20 14.5A8 8 0 1 1 9.5 4a6.5 6.5 0 0 0 10.5 10.5z"/></symbol>
+  <symbol id="mi-auto" viewBox="0 0 24 24"><circle cx="12" cy="12" r="8.5"/><path d="M12 3.5v17a8.5 8.5 0 0 0 0-17z" fill="currentColor"/></symbol>
+  <symbol id="mi-back" viewBox="0 0 24 24"><path d="M14.5 6l-6 6 6 6"/></symbol>
+  <symbol id="mi-cam" viewBox="0 0 24 24"><path d="M4 7.5h3l1.8-2.5h6.4L17 7.5h3V19H4z"/><circle cx="12" cy="13" r="3.5"/></symbol>
+  <symbol id="mi-image" viewBox="0 0 24 24"><rect x="3.5" y="4.5" width="17" height="15" rx="2.5"/><circle cx="9" cy="9.5" r="1.6"/><path d="M20.5 15.5l-5-5-9 9"/></symbol>
+  <symbol id="mi-clip" viewBox="0 0 24 24"><rect x="5.5" y="4.5" width="13" height="16" rx="2"/><path d="M9 4.5V3h6v1.5M9 10h6M9 14h4"/></symbol>
+  <symbol id="mi-cast" viewBox="0 0 24 24"><path d="M3.5 17.5V6.5a2 2 0 0 1 2-2h13a2 2 0 0 1 2 2v11a2 2 0 0 1-2 2h-6"/><path d="M3.5 13.5a6 6 0 0 1 6 6M3.5 17a2.5 2.5 0 0 1 2.5 2.5"/></symbol>
+  <symbol id="mi-up" viewBox="0 0 24 24"><path d="M12 19V6M6.5 11.5L12 6l5.5 5.5"/><path d="M5 4h14"/></symbol>
+  <symbol id="mi-chev-up" viewBox="0 0 24 24"><path d="M6 14.5l6-6 6 6"/></symbol>
+  <symbol id="mi-chev-down" viewBox="0 0 24 24"><path d="M6 9.5l6 6 6-6"/></symbol>
+  <symbol id="mi-rotate" viewBox="0 0 24 24"><path d="M19.5 12a7.5 7.5 0 1 1-2.2-5.3"/><path d="M19.5 4.5v4.5H15"/></symbol>
+  <symbol id="mi-frame" viewBox="0 0 24 24"><path d="M4.5 9V4.5H9M15 4.5h4.5V9M19.5 15v4.5H15M9 19.5H4.5V15"/></symbol>
+  <symbol id="mi-spark" viewBox="0 0 24 24"><path d="M11 3.5l1.7 4.8 4.8 1.7-4.8 1.7L11 16.5l-1.7-4.8L4.5 10l4.8-1.7z"/><path d="M18 15l.8 2.2 2.2.8-2.2.8L18 21l-.8-2.2-2.2-.8 2.2-.8z"/></symbol>
+  <symbol id="mi-pencil" viewBox="0 0 24 24"><path d="M4.5 19.5l1-4L16 5l3 3L8.5 18.5z"/><path d="M13.5 7.5l3 3"/></symbol>
+  <symbol id="mi-eye" viewBox="0 0 24 24"><path d="M2.5 12S6 5.5 12 5.5 21.5 12 21.5 12 18 18.5 12 18.5 2.5 12 2.5 12z"/><circle cx="12" cy="12" r="3"/></symbol>
+  <symbol id="mi-page" viewBox="0 0 24 24"><path d="M6.5 3.5h7l4 4v13h-11z"/><path d="M13.5 3.5v4h4M9 12h6M9 15.5h6"/></symbol>
+  <symbol id="mi-target" viewBox="0 0 24 24"><circle cx="12" cy="12" r="8"/><circle cx="12" cy="12" r="4"/><path d="M12 12h.01"/></symbol>
+  <symbol id="mi-trash" viewBox="0 0 24 24"><path d="M4.5 7h15M9.5 7V4.5h5V7M6.5 7l1 13h9l1-13M10 11v5.5M14 11v5.5"/></symbol>
+  <symbol id="mi-screen" viewBox="0 0 24 24"><rect x="3" y="4.5" width="18" height="12" rx="2"/><path d="M8.5 20h7M12 16.5V20"/></symbol>
+  <symbol id="mi-search" viewBox="0 0 24 24"><circle cx="11" cy="11" r="6.5"/><path d="M16 16l4.5 4.5"/></symbol>
+  <symbol id="mi-heart" viewBox="0 0 24 24"><path d="M12 20s-7-4.5-7-10a4 4 0 0 1 7-2.5A4 4 0 0 1 19 10c0 5.5-7 10-7 10z"/></symbol>
+  <symbol id="mi-check" viewBox="0 0 24 24"><path d="M5 12.5l4.5 4.5L19 7.5"/></symbol>
+  <symbol id="mi-print" viewBox="0 0 24 24"><path d="M6.5 8.5V4h11v4.5"/><rect x="4" y="8.5" width="16" height="8" rx="2"/><path d="M7.5 14h9v6h-9z"/></symbol>
+</svg>
+<div class="wrap">
+  <header class="hdr">
+    <div class="hdr-left">
+      <div class="logo-badge">题</div>
+      <div>
+        <div class="hdr-title">AI 手机拍题讲题</div>
+        <div class="hdr-sub"><span class="dot" id="connDot"></span><span id="connTxt">正在连接家里大屏…</span></div>
+      </div>
+    </div>
+    <div class="hdr-right">
+      <button type="button" class="theme-btn" id="btnTheme" onclick="cycleTheme()" aria-label="深浅色：自动"><svg class="mi"><use href="#mi-auto"/></svg></button>
+    </div>
+  </header>
+
+  <section class="card">
+    <div class="card-hd">
+      <b>① 拍照或选作业图</b>
+    </div>
+    <div class="pick-grid">
+      <label class="pick-btn primary">
+        <span><svg class="mi"><use href="#mi-cam"/></svg> 拍照选题</span>
+        <input id="inpCam" type="file" accept="image/*" capture="environment" onchange="onPickFile(this)">
+      </label>
+      <label class="pick-btn">
+        <span><svg class="mi"><use href="#mi-image"/></svg> 相册 / 微信图</span>
+        <input id="inpAlbum" type="file" accept="image/*" onchange="onPickFile(this)">
+      </label>
+    </div>
+    <button type="button" class="paste-btn" onclick="pasteFromClipboardBtn()"><svg class="mi"><use href="#mi-clip"/></svg> 粘贴截图（先复制图片，再点这里）</button>
+    <div class="reuse-bar" id="reuseBar">
+      <span id="reuseTxt"><svg class="mi"><use href="#mi-page"/></svg>大屏作业夹里有传过的作业</span>
+      <div class="tray-pills" id="reuseTrayPills">
+        <button type="button" class="reuse-btn" onclick="loadStagedPageFromServer()">载入框题</button>
+      </div>
+    </div>
+
+    <div class="crop-section" id="cropSection">
+      <div class="card-hd" style="margin-top:2px;">
+        <b>② 拖动绿框，圈出要讲的一道题</b>
+      </div>
+      <div class="stage-box" id="mobStageBox">
+        <canvas id="pagePreviewCanvas"></canvas>
+        <div class="crop-layer" id="mobCropLayer">
+          <div id="mobDoneLayer" style="position:absolute;inset:0;pointer-events:none;"></div>
+          <div class="crop-win" id="mobCropWin">
+            <span class="crop-lbl" id="mobCropLbl">拖动框选单道题</span>
+            <span class="c-hdl nw" data-h="nw"></span>
+            <span class="c-hdl ne" data-h="ne"></span>
+            <span class="c-hdl sw" data-h="sw"></span>
+            <span class="c-hdl se" data-h="se"></span>
+          </div>
+        </div>
+      </div>
+      <div class="tool-row">
+        <button type="button" class="t-chip" onclick="shiftCropQuestion(-1)"><svg class="mi"><use href="#mi-chev-up"/></svg>上移一题</button>
+        <button type="button" class="t-chip" onclick="shiftCropQuestion(1)"><svg class="mi"><use href="#mi-chev-down"/></svg>下移一题</button>
+        <button type="button" class="t-chip" id="btnRot" onclick="rotateSource90()"><svg class="mi"><use href="#mi-rotate"/></svg>旋转 90°</button>
+      </div>
+      <div class="tool-row">
+        <button type="button" class="t-chip" id="btnFullToggle" onclick="toggleFullOrSingleCrop()"><svg class="mi"><use href="#mi-frame"/></svg>选整张</button>
+        <button type="button" class="t-chip on" id="btnCrisp" onclick="toggleCrispMode()"><svg class="mi"><use href="#mi-spark"/></svg>卷面增晰：开</button>
+      </div>
+      <div class="crop-live-card">
+        <div class="crop-live-hd">
+          <b><svg class="mi"><use href="#mi-eye"/></svg>发给老师的就是这一块</b>
+          <span id="cropLiveMeta">--</span>
+        </div>
+        <div class="crop-live-wrap">
+          <canvas id="cropLiveCanvas" width="240" height="72"></canvas>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section class="card">
+    <div class="card-hd">
+      <b><span id="stepSendNo">②</span> 发到家里大屏</b>
+    </div>
+    <div class="act-col">
+      <button type="button" class="btn-explain" id="btnExplainNow" onclick="submitMobile('explain_now', 'standard')"><svg class="mi"><use href="#mi-cast"/></svg> 投屏开讲这道题</button>
+      <button type="button" class="btn-check-page" id="btnCheckPage" onclick="submitMobile('check_page')"><svg class="mi"><use href="#mi-check"/></svg> 整页先批后讲（做对免打扰·只框错题）</button>
+      <button type="button" class="mob-more-btn" id="btnMobMore" onclick="toggleMobMore()">更多选项与草稿精批 ▾</button>
+      <div class="mob-more collapsed" id="mobMoreTools">
+        <div class="opt-grid">
+          <select class="sel-ctl" id="selPedagogy" onchange="saveLocalPrefs()">
+            <option value="auto">学段：自动识别</option>
+            <option value="elem">学段：小学（线段图、份数）</option>
+            <option value="junior">学段：初中（方程、几何）</option>
+          </select>
+          <select class="sel-ctl" id="selMode" onchange="saveLocalPrefs()">
+            <option value="fast">讲解：标准</option>
+            <option value="deep">讲解：深度（难题更细）</option>
+            <option value="backup">讲解：备用线路</option>
+          </select>
+        </div>
+        <input class="note-inp" id="inpNote" type="text" maxlength="600" onkeydown="if(event.key==='Enter'&&!event.isComposing){event.preventDefault();submitMobile('explain_now','standard');}" placeholder="选填：只讲第2小问，或直接输入文字题">
+        <button type="button" class="btn-draft" id="btnDiagnoseDraft" onclick="submitMobile('explain_now', 'diagnose_draft')"><svg class="mi"><use href="#mi-search"/></svg> 拍草稿找错 / 拍习作精批（夸亮点引订正）</button>
+        <button type="button" class="btn-draft" id="btnMobCowrite" onclick="submitMobile('cowrite_check')"><svg class="mi"><use href="#mi-eye"/></svg> 投送初三静默伴写看板（零语音·防剧透提示）</button>
+        <button type="button" class="btn-stage" id="btnStageOnly" onclick="submitMobile('stage_only')"><svg class="mi"><use href="#mi-up"/></svg> 只传整页，到大屏上再选题</button>
+      </div>
+    </div>
+  </section>
+
+  <section class="card" id="mobDictCard">
+    <div class="card-hd">
+      <b>🎧 自助听写 · 微信粘词 / 拍纸秒批</b>
+      <button type="button" class="theme-btn" id="btnToggleMobDict" onclick="toggleMobDictCard()">展开 ▾</button>
+    </div>
+    <div class="mob-dc-body collapsed" id="mobDictBody">
+      <textarea class="mob-dc-ta" id="inpMobDictWords" placeholder="粘贴老师在微信群发的听写词表（支持中文词语、英文单词+释义，空格/逗号/换行分隔，如：锲而不舍、人迹罕至、environment 环境）"></textarea>
+      <div class="opt-grid">
+        <select class="sel-ctl" id="selDictInterval">
+          <option value="8">书写间隔：8秒（标准）</option>
+          <option value="5">书写间隔：5秒（熟练）</option>
+          <option value="12">书写间隔：12秒（低年级/长词）</option>
+          <option value="0">书写间隔：手动点下一个</option>
+        </select>
+        <select class="sel-ctl" id="selDictEnMode">
+          <option value="both">英语：读英文 + 报中文义</option>
+          <option value="en_only">英语：只读英文发音</option>
+          <option value="zh_prompt">英语：只报中文（默写英文）</option>
+        </select>
+      </div>
+      <button type="button" class="mob-dc-btn primary" id="btnMobDictStartTxt" onclick="mobStartDictText()">🚀 投屏文字词表到大屏听写</button>
+      <div class="mob-dc-grid">
+        <button type="button" class="mob-dc-btn" id="btnMobDictFromImg" onclick="mobStartDictImage()">📖 用上方所拍课本图提词</button>
+        <button type="button" class="mob-dc-btn grade" id="btnMobDictGradeImg" onclick="mobGradeDictImage()">📸 用上方所拍听写本秒批</button>
+      </div>
+      <div class="mob-dc-status" id="mobDictStatusBox" style="display:none"></div>
+    </div>
+  </section>
+
+  <section class="card">
+    <div class="card-hd">
+      <b><svg class="mi"><use href="#mi-screen"/></svg> 家里大屏现在</b>
+      <button type="button" class="theme-btn" id="btnNextSamePage" style="display:none" onclick="scrollToCropNext()"><svg class="mi"><use href="#mi-frame"/></svg>框同页下一题</button>
+    </div>
+    <div class="live-box">
+      <div class="live-q" id="liveLessonBox">大屏当前空闲，拍一道题或输入文字即可在家里电子黑板开启 4 步启发式引导。</div>
+      <div class="live-meta">
+        <span id="liveStepTxt">引导模式：先想后看 · 防剧透闯关</span>
+        <span id="liveStageTxt">整页暂存：暂无</span>
+      </div>
+      <div class="mob-cw-panel" id="mobCwPanel" style="display:none"></div>
+      <div class="nudge-box" id="nudgeBox">
+        <div class="nudge-hd"><svg class="mi"><use href="#mi-heart"/></svg>给大屏递伴学锦囊（不报答案，温柔点拨）</div>
+        <div class="nudge-chips" id="nudgeChipsRow">
+          <button type="button" class="nudge-chip" onclick="sendParentNudge('别急，先看清图上的已知条件哦！')">别急看已知</button>
+          <button type="button" class="nudge-chip" onclick="sendParentNudge('盯住黑板红色虚线，想想两段什么关系！')">盯住红虚线</button>
+          <button type="button" class="nudge-chip" onclick="sendParentNudge('算完记得代回原题核对一下单位哦！')">核对单位</button>
+        </div>
+        <div class="nudge-row">
+          <input class="nudge-inp" id="inpNudge" type="text" maxlength="60" onkeydown="if(event.key==='Enter'){event.preventDefault();sendParentNudge();}" placeholder="写一句鼓励或思路提醒投到大屏…">
+          <button type="button" class="nudge-send" onclick="sendParentNudge()">投送</button>
+        </div>
+      </div>
+      <div class="live-acts" id="liveStageActs">
+        <div class="tray-pills" id="liveTrayPills" style="width:100%;"></div>
+        <button type="button" class="theme-btn" id="btnRemoteCwEnroll" style="display:none" onclick="submitMobile('cowrite_enroll_warns')">📌 <span id="btnRemoteCwEnrollTxt">收录伴写易错题</span></button>
+        <button type="button" class="theme-btn" id="btnRemoteCwPrint" style="display:none" onclick="openCwPrintSheet()"><svg class="mi"><use href="#mi-print"/></svg><span id="btnRemoteCwPrintTxt">生成伴写错题 A4 清卷</span></button>
+        <button type="button" class="theme-btn" id="btnRemoteMistake" style="display:none" onclick="submitMobile('trigger_mistake_retest')"><svg class="mi"><use href="#mi-target"/></svg><span id="btnRemoteMistakeTxt">投屏错题换数复测</span></button>
+        <button type="button" class="theme-btn" id="btnPrintSheet" onclick="openPrintSheetModal()"><svg class="mi"><use href="#mi-print"/></svg>导出 A4 错题重练清卷（微信打印）</button>
+        <button type="button" class="theme-btn" id="btnRemoteVariant" style="display:none" onclick="submitMobile('trigger_variant')"><svg class="mi"><use href="#mi-target"/></svg>投屏同类巩固题</button>
+        <button type="button" class="theme-btn" id="btnOpenPhoneView" onclick="submitMobile('open_phone_view')"><svg class="mi"><use href="#mi-screen"/></svg>大屏打开作业夹</button>
+        <button type="button" class="theme-btn" id="btnClearStage" onclick="submitMobile('clear_stage')"><svg class="mi"><use href="#mi-trash"/></svg>清空作业夹</button>
+      </div>
+    </div>
+  </section>
+</div>
+
+<div class="print-modal" id="printModal" onclick="if(event.target===this)closePrintSheetModal()">
+  <div class="print-panel">
+    <div class="print-hd">
+      <b><svg class="mi"><use href="#mi-print"/></svg>导出 A4 错题重练清卷</b>
+      <button type="button" class="theme-btn" onclick="closePrintSheetModal()">关闭</button>
+    </div>
+    <div class="print-modes">
+      <button type="button" class="pm-btn on" id="btnPmDesens" onclick="setPrintSheetMode('desensitized')">✨ AI 脱敏换数新卷</button>
+      <button type="button" class="pm-btn" id="btnPmOrig" onclick="setPrintSheetMode('original')">📄 原错题擦除重做</button>
+    </div>
+    <div class="print-list" id="printMistakeList"></div>
+    <button type="button" class="btn-explain" id="btnGenPrintSheet" onclick="generateA4PrintSheet()"><svg class="mi"><use href="#mi-spark"/></svg> 一键排版生成高清 A4 清卷</button>
+    <div class="print-preview-wrap" id="printPreviewWrap">
+      <span id="printPreviewHint" style="font-size:13px;font-weight:700;color:var(--muted);">长按下方卷面图可发微信直接打印，或点下方保存/打印：</span>
+      <img id="printPreviewImg" alt="A4错题清卷预览">
+      <div class="print-dl-row">
+        <a class="print-dl-btn" id="btnDownloadSheet" download="AI错题重练A4清卷.jpg" href="#">保存高清卷面图</a>
+        <button type="button" class="print-dl-btn" onclick="window.print()">直接调起打印</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="print-modal" id="mobCwSnapModal" onclick="if(event.target===this)closeMobCwSnapModal()">
+  <div class="print-panel">
+    <div class="print-hd">
+      <b id="mobCwModalTitle">伴写原题与自查提示</b>
+      <button type="button" class="theme-btn" onclick="closeMobCwSnapModal()">关闭</button>
+    </div>
+    <div class="mob-cw-hint" id="mobCwModalHint"></div>
+    <div class="print-preview-wrap show" style="padding:6px;">
+      <img id="mobCwModalImg" alt="伴写原题截图">
+    </div>
+    <div class="mob-cw-acts">
+      <button type="button" class="mob-cw-btn on" id="btnMobCwRecheckOne" onclick="recheckMobCwModalItem()">🔄 远程复查此题</button>
+      <button type="button" class="mob-cw-btn" id="btnMobCwResolveOne" onclick="resolveMobCwModalItem()">✓ 标为已订正</button>
+      <button type="button" class="mob-cw-btn" id="btnMobCwUnresolveOne" style="display:none;" onclick="unresolveMobCwModalItem()">↩ 撤回待查</button>
+      <button type="button" class="mob-cw-btn" id="btnMobCwStarOne" onclick="starMobCwModalItem()">☆ 标重点</button>
+      <button type="button" class="mob-cw-btn" id="btnMobCwExplainOne" onclick="explainMobCwModalItem()">🎓 大屏静默拆解</button>
+      <button type="button" class="mob-cw-btn" id="btnMobCwVariantOne" onclick="variantMobCwModalItem()">🎯 投屏同类变式</button>
+      <button type="button" class="mob-cw-btn" id="btnMobCwSoloVar" onclick="soloVariantMobCwModalItem()">⚡ 投屏独做变式</button>
+      <button type="button" class="mob-cw-btn" onclick="nudgeMobCwModalItem()">💌 轻声提醒孩子看这题</button>
+    </div>
+  </div>
+</div>
+
+<div class="toast" id="toastEl"></div>
+
+<script>
+(() => {
+  'use strict';
+  const $ = id => document.getElementById(id);
+  let themePref = 'auto';
+  let baseCanvas = null;
+  let clientPageId = '';
+  let loadedServerPageId = '';
+  let curDoneCrops = [];
+  let curCheckMarks = [];
+  let mobileMistakes = [];
+  let printSheetMode = 'desensitized';
+  let printSelIds = new Set();
+  let printSelectionInited = false;
+  let printFromCowrite = false;
+  let printBusy = false;
+  let detectedBlocks = [];
+  let mobScanCanvas = null;
+  let pageDirtyForServer = false;
+  let pendingCheckPageId = '', pendingPrevSummary = '', pendingPrevCheckSeq = -1;
+  let pendingCowriteSeq = -1, lastCowriteSeqSeen = 0, lastCowriteBrief = null, mobCwModalItem = null, cwRemoteBusy = false;
+  let userSelectedCrop = false;
+  let pendingRotSteps = 0;
+  let filterMode = 'crisp'; // 'crisp' | 'pencil' | 'raw'
+  let crop = { x: 0.06, y: 0.12, w: 0.88, h: 0.56 };
+  let busy = false;
+  let pollInFlight = false;
+  let stageSilentInFlight = false;
+  let stageSilentCtl = null;
+  let pageLoadSeq = 0;
+  let mobileStateEtag = '';
+  let serverHasStaged = false;
+  let serverPages = [], activeServerPageId = '';
+  let activeLessonId = '';
+  let toastT = 0;
+  let liveThumbRaf = 0;
+
+  function abortStageSilent() {
+    stageSilentInFlight = false;
+    if (stageSilentCtl) {
+      try { stageSilentCtl.abort(); } catch (e) {}
+      stageSilentCtl = null;
+    }
+  }
+
+  async function fetchWithTimeout(url, opts = {}, timeoutMs = 12000) {
+    const ctl = new AbortController();
+    const extSig = opts && opts.signal;
+    if (extSig) {
+      if (extSig.aborted) ctl.abort();
+      else extSig.addEventListener('abort', () => ctl.abort(), { once: true });
+    }
+    const t = setTimeout(() => ctl.abort(), timeoutMs);
+    try {
+      return await fetch(url, Object.assign({}, opts, { signal: ctl.signal }));
+    } finally {
+      clearTimeout(t);
+    }
+  }
+
+  function escHtml(s) {
+    return String(s == null ? '' : s).replace(/[&<>"']/g, ch => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[ch]));
+  }
+  function jsAttrStr(s) {
+    return escHtml(JSON.stringify(String(s == null ? '' : s)));
+  }
+
+  function releaseCanvas(c) {
+    if (c) {
+      try { c.width = 1; c.height = 1; } catch (e) {}
+    }
+  }
+
+  function applyTheme() {
+    const dark = themePref === 'dark' || (themePref === 'auto' && window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches);
+    document.documentElement.setAttribute('data-theme', dark ? 'dark' : 'light');
+    $('metaThemeColor').setAttribute('content', dark ? '#0a101c' : '#e3dbce');
+    $('btnTheme').innerHTML = `<svg class="mi"><use href="#mi-${themePref === 'light' ? 'sun' : (themePref === 'dark' ? 'moon' : 'auto')}"/></svg>`;
+    $('btnTheme').setAttribute('aria-label', '深浅色：' + (themePref === 'light' ? '浅色' : (themePref === 'dark' ? '深色' : '自动')));
+  }
+
+  try {
+    const tp = localStorage.getItem('tutor-mob-theme');
+    if (tp === 'light' || tp === 'dark' || tp === 'auto') themePref = tp;
+    const sp = localStorage.getItem('tutor-mob-ped');
+    if (sp === 'auto' || sp === 'elem' || sp === 'junior') $('selPedagogy').value = sp;
+    const sm = localStorage.getItem('tutor-mob-mode');
+    if (sm === 'fast' || sm === 'deep' || sm === 'backup') $('selMode').value = sm;
+  } catch (e) {}
+  applyTheme();
+
+  window.tsSetTheme = (p) => {      /* 2026-11-20 Claude：管理后台切深浅色时跟着变 */
+    themePref = p === 'light' || p === 'dark' ? p : 'auto';
+    try { localStorage.setItem('tutor-mob-theme', themePref); } catch (e) {}
+    applyTheme();
+  };
+
+  window.cycleTheme = () => {
+    themePref = themePref === 'auto' ? 'light' : (themePref === 'light' ? 'dark' : 'auto');
+    try { localStorage.setItem('tutor-mob-theme', themePref); } catch (e) {}
+    applyTheme();
+  };
+
+  window.saveLocalPrefs = () => {
+    try {
+      localStorage.setItem('tutor-mob-ped', $('selPedagogy').value);
+      localStorage.setItem('tutor-mob-mode', $('selMode').value);
+    } catch (e) {}
+  };
+
+  function toast(msg) {
+    const el = $('toastEl');
+    el.textContent = msg;
+    el.classList.add('show');
+    clearTimeout(toastT);
+    toastT = setTimeout(() => el.classList.remove('show'), 2900);
+  }
+
+  function decodeFileToCanvas(fileOrBlob) {
+    return new Promise((resolve, reject) => {
+      if (window.createImageBitmap) {
+        createImageBitmap(fileOrBlob).then(bmp => {
+          const maxSide = 1600;
+          const sc = Math.min(1, maxSide / Math.max(bmp.width, bmp.height));
+          const w = Math.max(32, Math.round(bmp.width * sc));
+          const h = Math.max(32, Math.round(bmp.height * sc));
+          const c = document.createElement('canvas');
+          c.width = w; c.height = h;
+          c.getContext('2d').drawImage(bmp, 0, 0, w, h);
+          if (bmp.close) bmp.close();
+          resolve(c);
+        }).catch(() => fallbackImgDecode(fileOrBlob, resolve, reject));
+      } else {
+        fallbackImgDecode(fileOrBlob, resolve, reject);
+      }
+    });
+  }
+
+  function fallbackImgDecode(blob, resolve, reject) {
+    const url = URL.createObjectURL(blob);
+    const img = new Image();
+    img.onload = () => {
+      URL.revokeObjectURL(url);
+      const maxSide = 1600;
+      const sc = Math.min(1, maxSide / Math.max(img.naturalWidth || 32, img.naturalHeight || 32));
+      const w = Math.max(32, Math.round(img.naturalWidth * sc));
+      const h = Math.max(32, Math.round(img.naturalHeight * sc));
+      const c = document.createElement('canvas');
+      c.width = w; c.height = h;
+      c.getContext('2d').drawImage(img, 0, 0, w, h);
+      resolve(c);
+    };
+    img.onerror = () => { URL.revokeObjectURL(url); reject(new Error('decode_failed')); };
+    img.src = url;
+  }
+
+  // Chroma-preserving document shadow lift + optional Pencil Boost gamma darkening for faint 2B homework!
+  function applyDocumentCrispFilter(ctx, w, h, pencilBoost = false) {
+    const imgData = ctx.getImageData(0, 0, w, h);
+    const d = imgData.data;
+    const hist = new Uint32Array(256);
+    const step = Math.max(4, Math.floor((w * h) / 14000) * 4);
+    let samples = 0;
+    for (let i = 0; i < d.length; i += step) {
+      const lum = (d[i] * 77 + d[i + 1] * 150 + d[i + 2] * 29) >> 8;
+      hist[lum]++;
+      samples++;
+    }
+    if (!samples) return;
+    let accHi = 0, whitePt = 240, medPt = 200, accMed = 0;
+    for (let k = 255; k >= 125; k--) {
+      accHi += hist[k];
+      if (accHi >= samples * 0.14) { whitePt = Math.max(158, k); break; }
+    }
+    for (let k = 255; k >= 0; k--) {
+      accMed += hist[k];
+      if (accMed >= samples * 0.50) { medPt = k; break; }
+    }
+    // Already clean white digital screenshot/PDF -> preserve 100% original pixels unless user explicitly chose Pencil Boost!
+    if (!pencilBoost && whitePt >= 242 && medPt >= 214) return;
+
+    let accLo = 0, blackPt = 24;
+    for (let k = 0; k <= 105; k++) {
+      accLo += hist[k];
+      if (accLo >= samples * 0.015) { blackPt = Math.min(68, k); break; }
+    }
+    const floorShift = blackPt * (pencilBoost ? 0.68 : 0.55);
+    const span = Math.max(85, whitePt - floorShift);
+    const gain = Math.max(1.0, 250 / span);
+    const gammaLut = new Uint8Array(256);
+    for (let v = 0; v < 256; v++) {
+      gammaLut[v] = pencilBoost && v < 242 ? Math.max(0, Math.min(255, Math.round(255 * Math.pow(v / 255, 1.48)))) : v;
+    }
+
+    for (let i = 0; i < d.length; i += 4) {
+      const r0 = d[i], g0 = d[i + 1], b0 = d[i + 2];
+      const mx = r0 > g0 ? (r0 > b0 ? r0 : b0) : (g0 > b0 ? g0 : b0);
+      const mn = r0 < g0 ? (r0 < b0 ? r0 : b0) : (g0 < b0 ? g0 : b0);
+      const chroma = mx - mn;
+      const r1 = gammaLut[Math.max(0, Math.min(255, ((r0 - floorShift) * gain) | 0))];
+      const g1 = gammaLut[Math.max(0, Math.min(255, ((g0 - floorShift) * gain) | 0))];
+      const b1 = gammaLut[Math.max(0, Math.min(255, ((b0 - floorShift) * gain) | 0))];
+      if (chroma >= 26) {
+        // Blend back toward original RGB on colored geometry fills/annotations so shaded areas stay visible!
+        const keep = Math.min(0.72, (chroma - 20) / 90);
+        d[i] = (r1 * (1 - keep) + r0 * keep) | 0;
+        d[i + 1] = (g1 * (1 - keep) + g0 * keep) | 0;
+        d[i + 2] = (b1 * (1 - keep) + b0 * keep) | 0;
+      } else {
+        d[i] = r1; d[i + 1] = g1; d[i + 2] = b1;
+      }
+    }
+    ctx.putImageData(imgData, 0, 0);
+  }
+
+  function scheduleLiveCropThumb() {
+    if (liveThumbRaf) return;
+    liveThumbRaf = requestAnimationFrame(() => {
+      liveThumbRaf = 0;
+      if (!baseCanvas) return;
+      const sx = Math.round(crop.x * baseCanvas.width);
+      const sy = Math.round(crop.y * baseCanvas.height);
+      const sw = Math.max(24, Math.min(baseCanvas.width - sx, Math.round(crop.w * baseCanvas.width)));
+      const sh = Math.max(24, Math.min(baseCanvas.height - sy, Math.round(crop.h * baseCanvas.height)));
+      const sc = Math.min(1, 460 / Math.max(sw, sh), 108 / Math.max(1, sh));
+      const tw = Math.max(24, Math.round(sw * sc));
+      const th = Math.max(20, Math.round(sh * sc));
+      const lc = $('cropLiveCanvas');
+      lc.width = tw; lc.height = th;
+      const lctx = lc.getContext('2d', { willReadFrequently: true });
+      lctx.drawImage(baseCanvas, sx, sy, sw, sh, 0, 0, tw, th);
+      if (filterMode !== 'raw') applyDocumentCrispFilter(lctx, tw, th, filterMode === 'pencil');
+      const modeLbl = filterMode === 'pencil' ? '铅笔加深' : (filterMode === 'crisp' ? '增晰已开' : '原图直传');
+      $('cropLiveMeta').textContent = modeLbl;
+    });
+  }
+
+  function mobBoxIoU(a, b) {
+    if (!a || !b) return 0;
+    const ix = Math.max(0, Math.min(a.x + a.w, b.x + b.w) - Math.max(a.x, b.x));
+    const iy = Math.max(0, Math.min(a.y + a.h, b.y + b.h) - Math.max(a.y, b.y));
+    const inter = ix * iy;
+    if (inter <= 0) return 0;
+    return inter / Math.max(1e-6, a.w * a.h + b.w * b.h - inter);
+  }
+
+  function detectWorksheetQuestionBlocks(srcCanvas, doneList) {
+    if (!srcCanvas || srcCanvas.width < 80 || srcCanvas.height < 80) return [];
+    const GW = 180, GH = 240;
+    if (!mobScanCanvas) mobScanCanvas = document.createElement('canvas');
+    mobScanCanvas.width = GW;
+    mobScanCanvas.height = GH;
+    const ctx = mobScanCanvas.getContext('2d', { willReadFrequently: true });
+    ctx.drawImage(srcCanvas, 0, 0, GW, GH);
+    const data = ctx.getImageData(0, 0, GW, GH).data;
+    const hist = new Uint32Array(256);
+    const lums = new Uint8Array(GW * GH);
+    for (let i = 0, p = 0; i < data.length; i += 4, p++) {
+      const l = (data[i] * 77 + data[i + 1] * 150 + data[i + 2] * 29) >> 8;
+      lums[p] = l;
+      hist[l]++;
+    }
+    const total = GW * GH;
+    let acc = 0, p10 = 0, p75 = 240;
+    for (let v = 0; v < 256; v++) { acc += hist[v]; if (acc >= total * 0.10) { p10 = v; break; } }
+    acc = 0;
+    for (let v = 0; v < 256; v++) { acc += hist[v]; if (acc >= total * 0.75) { p75 = v; break; } }
+    if (p75 - p10 < 18) return [];
+    const thr = Math.max(40, p75 - 26);
+    const xLo = Math.round(GW * 0.04), xHi = Math.round(GW * 0.96);
+    const yLo = Math.round(GH * 0.03), yHi = Math.round(GH * 0.97);
+    const rowCnt = new Uint16Array(GH), rowMinX = new Uint16Array(GH), rowMaxX = new Uint16Array(GH);
+    for (let y = yLo; y < yHi; y++) {
+      let cnt = 0, mn = GW, mx = 0;
+      const base = y * GW;
+      for (let x = xLo; x < xHi; x++) {
+        if (lums[base + x] < thr) { cnt++; if (x < mn) mn = x; if (x > mx) mx = x; }
+      }
+      rowCnt[y] = cnt;
+      rowMinX[y] = cnt > 0 ? mn : GW;
+      rowMaxX[y] = cnt > 0 ? mx : 0;
+    }
+    const minRowInk = Math.max(3, Math.round((xHi - xLo) * 0.022));
+    const lines = [];
+    let inLn = false, ly0 = 0, lmn = GW, lmx = 0;
+    for (let y = yLo; y <= yHi; y++) {
+      const active = y < yHi && rowCnt[y] >= minRowInk;
+      if (active) {
+        if (!inLn) { inLn = true; ly0 = y; lmn = rowMinX[y]; lmx = rowMaxX[y]; }
+        else { if (rowMinX[y] < lmn) lmn = rowMinX[y]; if (rowMaxX[y] > lmx) lmx = rowMaxX[y]; }
+      } else if (inLn) {
+        inLn = false;
+        if (y - ly0 >= 2) lines.push({ y0: ly0, y1: y, x0: lmn, x1: lmx });
+      }
+    }
+    if (!lines.length) return [];
+    const gapSplit = Math.max(6, Math.round(GH * 0.038));
+    const blocks = [];
+    let cur = Object.assign({}, lines[0]);
+    for (let i = 1; i < lines.length; i++) {
+      const ln = lines[i];
+      const gap = ln.y0 - cur.y1;
+      const curH = cur.y1 - cur.y0;
+      const leftOutdent = (cur.x0 - ln.x0) >= Math.round(GW * 0.06) && curH >= Math.round(GH * 0.11) && gap >= 3;
+      if (gap >= gapSplit || leftOutdent || (curH >= Math.round(GH * 0.34) && gap >= 4)) {
+        blocks.push(cur);
+        cur = Object.assign({}, ln);
+      } else {
+        cur.y1 = ln.y1;
+        cur.x0 = Math.min(cur.x0, ln.x0);
+        cur.x1 = Math.max(cur.x1, ln.x1);
+      }
+    }
+    blocks.push(cur);
+    const out = [];
+    for (const b of blocks) {
+      const rx = Math.max(0.02, b.x0 / GW - 0.025);
+      const ry = Math.max(0.02, b.y0 / GH - 0.016);
+      const rw = Math.min(0.98 - rx, (b.x1 - b.x0) / GW + 0.05);
+      const rh = Math.min(0.98 - ry, (b.y1 - b.y0) / GH + 0.032);
+      if (rh < 0.045 || rh > 0.78 || rw < 0.18) continue;
+      const box = { x: Number(rx.toFixed(4)), y: Number(ry.toFixed(4)), w: Number(rw.toFixed(4)), h: Number(rh.toFixed(4)) };
+      if (!(doneList || []).some(dc => dc && dc.crop && mobBoxIoU(dc.crop, box) >= 0.45)) out.push(box);
+      if (out.length >= 8) break;
+    }
+    return out;
+  }
+
+  window.selectMobDetectedBlock = (idx) => {
+    const b = detectedBlocks[idx];
+    if (!b) return;
+    userSelectedCrop = true;
+    crop = Object.assign({}, b);
+    paintCropWin();
+    paintDoneMarks();
+    toast(`✨ 已智能框中第 ${idx + 1} 题，点下方按钮即可投屏！`);
+  };
+
+  window.selectMobCheckMark = (idx) => {
+    const m = curCheckMarks[idx];
+    if (!m || !m.box) return;
+    userSelectedCrop = true;
+    crop = Object.assign({}, m.box);
+    paintCropWin();
+    paintDoneMarks();
+    const defAct = m.cowrite_id
+      ? '可改好重拍点「静默伴写核查框选题」复查，或展开更多点「拍草稿找错」'
+      : (m.status === 'blank' ? '点下方「投屏开讲这道题」开启分步引导！' : '点下方「拍草稿找错」投屏启发订正！');
+    toast(`🔍 已框中${m.no || '该题'}：${m.note ? m.note + ' · ' : ''}${defAct}`);
+  };
+
+  function paintDoneMarks() {
+    const dl = $('mobDoneLayer');
+    const layer = $('mobCropLayer');
+    if (!dl || !layer) return;
+    const W = layer.clientWidth || 280, H = layer.clientHeight || 280;
+    const chkHtml = (curCheckMarks || []).map((m, idx) => {
+      const b = m && m.box;
+      if (!b) return '';
+      if ((curDoneCrops || []).some(dc => dc && dc.crop && mobBoxIoU(dc.crop, b) >= 0.45)) return '';
+      const noLbl = escHtml(m.no || `第${idx + 1}题`);
+      const flipSt = (b.y * H) < 26 ? ' style="top:2px;"' : '';
+      if (m.status === 'ok') {
+        return `<div class="chk-ok-mark" style="left:${Math.round(b.x * W)}px;top:${Math.round(b.y * H)}px;width:${Math.round(b.w * W)}px;height:${Math.round(b.h * H)}px;"><span${flipSt}>✓${noLbl}·对</span></div>`;
+      }
+      const stTag = m.status === 'blank' ? '未答' : '待订正';
+      return `<div class="chk-fix-mark" style="left:${Math.round(b.x * W)}px;top:${Math.round(b.y * H)}px;width:${Math.round(b.w * W)}px;height:${Math.round(b.h * H)}px;"><button type="button" class="chk-pill"${flipSt} onpointerdown="event.stopPropagation()" onclick="event.stopPropagation(); selectMobCheckMark(${idx})">🔍${noLbl}·${stTag}</button></div>`;
+    }).join('');
+    const candHtml = (curCheckMarks && curCheckMarks.length > 0) ? '' : (detectedBlocks || []).map((b, idx) => {
+      if (mobBoxIoU(b, crop) >= 0.72) return '';
+      if ((curDoneCrops || []).some(dc => dc && dc.crop && mobBoxIoU(dc.crop, b) >= 0.45)) return '';
+      const flipSt = (b.y * H) < 26 ? ' style="top:2px;"' : '';
+      return `<div class="cand-mark" style="left:${Math.round(b.x * W)}px;top:${Math.round(b.y * H)}px;width:${Math.round(b.w * W)}px;height:${Math.round(b.h * H)}px;"><button type="button" class="cand-pill"${flipSt} onpointerdown="event.stopPropagation()" onclick="event.stopPropagation(); selectMobDetectedBlock(${idx})">题${idx + 1}·点选</button></div>`;
+    }).join('');
+    const doneHtml = (curDoneCrops || []).map((dc, idx) => {
+      const c = dc && dc.crop;
+      if (!c) return '';
+      return `<div class="done-mark" style="left:${Math.round(c.x * W)}px;top:${Math.round(c.y * H)}px;width:${Math.round(c.w * W)}px;height:${Math.round(c.h * H)}px;"><span>✓已讲${idx + 1}</span></div>`;
+    }).join('');
+    dl.innerHTML = candHtml + chkHtml + doneHtml;
+  }
+
+  let lastStageW = 0, lastStageH = 0, stageResizeRaf = 0;
+  function renderPreviewStage(recalcBlocks = true) {
+    if (!baseCanvas) return;
+    $('cropSection').classList.add('show');
+    $('stepSendNo').textContent = '③';
+    $('reuseBar').classList.remove('show');
+    const stage = $('mobStageBox');
+    const SW = stage.clientWidth || 330, SH = stage.clientHeight || 320;
+    lastStageW = SW; lastStageH = SH;
+    const sc = Math.min(SW / baseCanvas.width, SH / baseCanvas.height);
+    const dw = Math.max(40, Math.round(baseCanvas.width * sc));
+    const dh = Math.max(40, Math.round(baseCanvas.height * sc));
+    const pv = $('pagePreviewCanvas');
+    pv.width = dw; pv.height = dh;
+    pv.getContext('2d').drawImage(baseCanvas, 0, 0, dw, dh);
+    const ox = Math.round((SW - dw) / 2);
+    const oy = Math.round((SH - dh) / 2);
+    const layer = $('mobCropLayer');
+    layer.style.left = ox + 'px';
+    layer.style.top = oy + 'px';
+    layer.style.width = dw + 'px';
+    layer.style.height = dh + 'px';
+    if (recalcBlocks) detectedBlocks = detectWorksheetQuestionBlocks(baseCanvas, curDoneCrops);
+    paintDoneMarks();
+    paintCropWin();
+  }
+
+  function paintCropWin() {
+    const layer = $('mobCropLayer');
+    const W = layer.clientWidth || 280, H = layer.clientHeight || 280;
+    const win = $('mobCropWin');
+    const cropTop = Math.round(crop.y * H);
+    win.style.left = Math.round(crop.x * W) + 'px';
+    win.style.top = cropTop + 'px';
+    win.style.width = Math.round(crop.w * W) + 'px';
+    win.style.height = Math.round(crop.h * H) + 'px';
+    const isFull = crop.w > 0.94 && crop.h > 0.94;
+    $('btnFullToggle').innerHTML = '<svg class="mi"><use href="#mi-frame"/></svg>' + (isFull ? '缩回单题框' : '选整张');
+    if ($('btnMobCowrite')) {
+      const isSingleCw = userSelectedCrop && (crop.w < 0.90 || crop.h < 0.82);
+      $('btnMobCowrite').innerHTML = '<svg class="mi"><use href="#mi-eye"/></svg> ' + (
+        isSingleCw
+          ? '静默伴写核查框选题（零语音·防剧透两级提示）'
+          : '投送初三静默伴写看板（整页巡检·零语音）'
+      );
+    }
+    const lbl = $('mobCropLbl');
+    lbl.textContent = isFull ? '已选整张画面' : '拖动框选单道题';
+    lbl.style.top = cropTop < 28 ? '4px' : '';
+    scheduleLiveCropThumb();
+  }
+
+  async function ingestLocalImageBlob(blob, sourceMsg) {
+    abortStageSilent();
+    const mySeq = ++pageLoadSeq;
+    const nextCanvas = await decodeFileToCanvas(blob);
+    if (mySeq !== pageLoadSeq) { releaseCanvas(nextCanvas); return; }
+    releaseCanvas(baseCanvas);
+    baseCanvas = nextCanvas;
+    clientPageId = 'cp_' + Date.now().toString(36) + '_' + Math.random().toString(36).slice(2, 6);
+    loadedServerPageId = '';
+    curDoneCrops = [];
+    curCheckMarks = [];
+    pendingRotSteps = 0;
+    userSelectedCrop = false;
+    pageDirtyForServer = true;
+    const autoBs = detectWorksheetQuestionBlocks(baseCanvas, []);
+    detectedBlocks = autoBs;
+    crop = autoBs.length > 0
+      ? Object.assign({}, autoBs[0])
+      : (baseCanvas.height > baseCanvas.width * 1.15
+          ? { x: 0.05, y: 0.14, w: 0.90, h: 0.36 }
+          : { x: 0.06, y: 0.10, w: 0.88, h: 0.72 });
+    requestAnimationFrame(renderPreviewStage);
+    $('btnNextSamePage').style.display = '';
+    toast(sourceMsg || '照片已载入，拖动绿框核对下方单题预览后即可投屏！');
+  }
+
+  window.onPickFile = async (inp) => {
+    const f = inp && inp.files && inp.files[0];
+    if (!f) return;
+    try {
+      await ingestLocalImageBlob(f, '照片已载入，拖动绿框核对下方单题预览后即可投屏！');
+    } catch (e) {
+      toast('读取图片失败，请换一张重试');
+    } finally {
+      inp.value = '';
+    }
+  };
+
+  window.pasteFromClipboardBtn = async () => {
+    if (!navigator.clipboard || !navigator.clipboard.read) {
+      toast('当前浏览器请直接按 Ctrl+V / 长按粘贴图片，或从相册选图');
+      return;
+    }
+    try {
+      const items = await navigator.clipboard.read();
+      for (const item of items) {
+        const imgType = (item.types || []).find(t => t.startsWith('image/'));
+        if (imgType) {
+          const blob = await item.getType(imgType);
+          await ingestLocalImageBlob(blob, '📋 已从剪贴板载入截图，拖动绿框圈题即可投屏！');
+          return;
+        }
+      }
+      toast('剪贴板里暂未发现图片，请先截图或复制作业图');
+    } catch (e) {
+      toast('请允许读取剪贴板权限，或直接使用相册选择截图');
+    }
+  };
+
+  window.addEventListener('paste', e => {
+    const items = e.clipboardData && e.clipboardData.items;
+    if (!items) return;
+    for (let i = 0; i < items.length; i++) {
+      if (items[i].type && items[i].type.startsWith('image/')) {
+        const blob = items[i].getAsFile();
+        if (blob) {
+          e.preventDefault();
+          ingestLocalImageBlob(blob, '📋 已粘贴截图，拖动绿框圈出题目即可投屏！').catch(() => toast('粘贴图片解析失败'));
+          return;
+        }
+      }
+    }
+  });
+
+  window.addEventListener('dragover', e => { e.preventDefault(); });
+  window.addEventListener('drop', e => {
+    const f = e.dataTransfer && e.dataTransfer.files && e.dataTransfer.files[0];
+    if (f && f.type && f.type.startsWith('image/')) {
+      e.preventDefault();
+      ingestLocalImageBlob(f, '🖼️ 已拖入作业图片，拖动绿框圈题即可投屏！').catch(() => toast('拖入图片读取失败'));
+    }
+  });
+
+  function rotBoxCw90(b) {
+    const nx = Math.max(0, Math.min(0.96, 1 - (b.y + b.h)));
+    const ny = Math.max(0, Math.min(0.96, b.x));
+    const nw = Math.max(0.04, Math.min(1 - nx, b.h));
+    const nh = Math.max(0.04, Math.min(1 - ny, b.w));
+    return { x: nx, y: ny, w: nw, h: nh };
+  }
+
+  window.loadStagedPageFromServer = async (pageId = '', pageIdx = 0) => {
+    abortStageSilent();
+    const myLoadSeq = ++pageLoadSeq;
+    toast(pageIdx ? `正在载入大屏第 ${pageIdx} 页作业…` : '正在从大屏载入已传整页作业…');
+    try {
+      const hitPg = (serverPages || []).find(p => pageId ? p.id === pageId : p.active) || serverPages[0] || null;
+      const targetId = pageId || (hitPg ? hitPg.id : '') || activeServerPageId;
+      const qs = targetId ? ('id=' + encodeURIComponent(targetId) + '&t=' + Date.now()) : ('t=' + Date.now());
+      const r = await fetchWithTimeout('api/mobile/page.jpg?' + qs, { cache: 'no-store' }, 12000);
+      if (myLoadSeq !== pageLoadSeq) return;
+      if (!r.ok) throw new Error('not_found');
+      const blob = await r.blob();
+      if (myLoadSeq !== pageLoadSeq) return;
+      const nextCanvas = await decodeFileToCanvas(blob);
+      if (myLoadSeq !== pageLoadSeq) { releaseCanvas(nextCanvas); return; }
+      releaseCanvas(baseCanvas);
+      baseCanvas = nextCanvas;
+      clientPageId = '';
+      loadedServerPageId = targetId;
+      curDoneCrops = (hitPg && Array.isArray(hitPg.done_crops)) ? hitPg.done_crops : [];
+      curCheckMarks = (hitPg && Array.isArray(hitPg.check_marks)) ? hitPg.check_marks : [];
+      pendingRotSteps = 0;
+      userSelectedCrop = false;
+      pageDirtyForServer = false;
+      crop = (hitPg && hitPg.last_crop && typeof hitPg.last_crop.w === 'number')
+        ? Object.assign({}, hitPg.last_crop)
+        : { x: 0.05, y: 0.22, w: 0.90, h: 0.34 };
+      requestAnimationFrame(renderPreviewStage);
+      $('btnNextSamePage').style.display = '';
+      if (targetId) {
+        postMobileJson({ action: 'select_page', page_id: targetId }).then(() => pollMobileState()).catch(() => {});
+      }
+      toast(pageIdx ? `已载入第 ${pageIdx} 页作业（已还原上次选框与已讲题痕）！` : '已载入整页作业，拖动绿框选下一道题吧！');
+    } catch (e) {
+      toast('暂未读取到整页作业图，请重新拍照');
+    }
+  };
+
+  window.shiftCropQuestion = (dir) => {
+    if (!baseCanvas) return;
+    userSelectedCrop = true;
+    const fixBoxes = (curCheckMarks || [])
+      .filter(m => m && m.status !== 'ok' && m.box && !(curDoneCrops || []).some(dc => dc && dc.crop && mobBoxIoU(dc.crop, m.box) >= 0.45))
+      .map(m => m.box);
+    const remBlocks = fixBoxes.length > 0
+      ? fixBoxes
+      : (detectedBlocks || []).filter(b => (
+          !(curDoneCrops || []).some(dc => dc && dc.crop && mobBoxIoU(dc.crop, b) >= 0.45)
+          && !(curCheckMarks || []).some(m => m && m.status === 'ok' && m.box && mobBoxIoU(m.box, b) >= 0.45)
+        ));
+    if (remBlocks.length >= 1) {
+      const cy = crop.y + crop.h / 2;
+      const target = dir > 0
+        ? remBlocks.find(b => (b.y + b.h / 2) > cy + 0.025)
+        : [...remBlocks].reverse().find(b => (b.y + b.h / 2) < cy - 0.025);
+      if (target) {
+        crop = Object.assign({}, target);
+        paintCropWin();
+        paintDoneMarks();
+        return;
+      }
+    }
+    const step = Math.max(0.05, crop.h * 0.92);
+    crop.y = Math.max(0, Math.min(1 - crop.h, crop.y + dir * step));
+    paintCropWin();
+    paintDoneMarks();
+  };
+
+  window.rotateSource90 = () => {
+    if (!baseCanvas) return;
+    abortStageSilent();
+    const prev = baseCanvas;
+    const c = document.createElement('canvas');
+    c.width = prev.height;
+    c.height = prev.width;
+    const ctx = c.getContext('2d');
+    ctx.translate(c.width / 2, c.height / 2);
+    ctx.rotate(Math.PI / 2);
+    ctx.drawImage(prev, -prev.width / 2, -prev.height / 2);
+    baseCanvas = c;
+    releaseCanvas(prev);
+    // Keep loadedServerPageId if rotating a staged page so server updates that page in-place without duplicating!
+    if (!loadedServerPageId && !clientPageId) clientPageId = 'cp_rot_' + Date.now().toString(36);
+    pageDirtyForServer = true;
+    pendingRotSteps = (pendingRotSteps + 1) % 4;
+    pageDirtyForServer = true;
+    crop = rotBoxCw90(crop);
+    curDoneCrops = (curDoneCrops || []).map(dc => dc && dc.crop ? Object.assign({}, dc, { crop: rotBoxCw90(dc.crop) }) : dc);
+    curCheckMarks = (curCheckMarks || []).map(cm => cm && cm.box ? Object.assign({}, cm, { box: rotBoxCw90(cm.box) }) : cm);
+    renderPreviewStage();
+  };
+
+  window.toggleFullOrSingleCrop = () => {
+    const isFull = crop.w > 0.94 && crop.h > 0.94;
+    userSelectedCrop = isFull;
+    crop = isFull ? { x: 0.06, y: 0.16, w: 0.88, h: 0.36 } : { x: 0.01, y: 0.01, w: 0.98, h: 0.98 };
+    paintCropWin();
+  };
+
+  window.toggleCrispMode = () => {
+    filterMode = filterMode === 'crisp' ? 'pencil' : (filterMode === 'pencil' ? 'raw' : 'crisp');
+    const b = $('btnCrisp');
+    b.classList.toggle('on', filterMode !== 'raw');
+    b.innerHTML = filterMode === 'crisp'
+      ? '<svg class="mi"><use href="#mi-spark"/></svg>卷面增晰：开'
+      : (filterMode === 'pencil' ? '<svg class="mi"><use href="#mi-pencil"/></svg>铅笔加深：开' : '<svg class="mi"><use href="#mi-image"/></svg>原图直传');
+    scheduleLiveCropThumb();
+  };
+
+  window.scrollToCropNext = () => {
+    const el = $('cropSection');
+    if (el && baseCanvas) {
+      shiftCropQuestion(1);
+      el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      toast('已自动下移选框，微调绿框后点「投屏开讲这道题」即可');
+    } else if (serverHasStaged) {
+      loadStagedPageFromServer();
+    }
+  };
+
+  (() => {
+    const layer = $('mobCropLayer');
+    let drag = null;
+    layer.addEventListener('pointerdown', e => {
+      if (drag || !baseCanvas) return;
+      if (e.target && e.target.closest && e.target.closest('.cand-pill, .chk-pill')) return;
+      const rect = layer.getBoundingClientRect();
+      if (!rect.width || !rect.height) return;
+      const px = e.clientX - rect.left;
+      const py = e.clientY - rect.top;
+      const nx = Math.max(0, Math.min(1, px / rect.width));
+      const ny = Math.max(0, Math.min(1, py / rect.height));
+      const x1 = crop.x * rect.width, y1 = crop.y * rect.height;
+      const x2 = (crop.x + crop.w) * rect.width, y2 = (crop.y + crop.h) * rect.height;
+      // Pixel-distance nearest-corner/edge hit detection: prevents nw/sw overlap on narrow 1-line boxes!
+      const corners = [['nw', x1, y1], ['ne', x2, y1], ['sw', x1, y2], ['se', x2, y2]];
+      let bestC = '', bestD = 999;
+      for (const [m, cx, cy] of corners) {
+        const d = Math.hypot(px - cx, py - cy);
+        if (d < bestD) { bestD = d; bestC = m; }
+      }
+      let mode = '';
+      if (bestD <= 24) {
+        mode = bestC;
+      } else if (px >= x1 - 8 && px <= x2 + 8 && Math.abs(py - y1) <= 13 && Math.abs(py - y1) <= Math.abs(py - y2)) {
+        mode = 'n';
+      } else if (px >= x1 - 8 && px <= x2 + 8 && Math.abs(py - y2) <= 13) {
+        mode = 's';
+      } else if (py >= y1 - 8 && py <= y2 + 8 && Math.abs(px - x1) <= 13 && Math.abs(px - x1) <= Math.abs(px - x2)) {
+        mode = 'w';
+      } else if (py >= y1 - 8 && py <= y2 + 8 && Math.abs(px - x2) <= 13) {
+        mode = 'e';
+      } else if (nx >= crop.x && nx <= crop.x + crop.w && ny >= crop.y && ny <= crop.y + crop.h) {
+        mode = 'move';
+      } else {
+        mode = 'new';
+      }
+      drag = { pointerId: e.pointerId, mode, sx: nx, sy: ny, orig: Object.assign({}, crop) };
+      try { layer.setPointerCapture(e.pointerId); } catch (err) {}
+      e.preventDefault();
+    });
+    layer.addEventListener('pointermove', e => {
+      if (!drag || e.pointerId !== drag.pointerId) return;
+      const rect = layer.getBoundingClientRect();
+      if (!rect.width || !rect.height) return;
+      const nx = Math.max(0, Math.min(1, (e.clientX - rect.left) / rect.width));
+      const ny = Math.max(0, Math.min(1, (e.clientY - rect.top) / rect.height));
+      const dx = nx - drag.sx, dy = ny - drag.sy;
+      const o = drag.orig;
+      const MIN_W = 0.08, MIN_H = 0.04;
+      if (drag.mode === 'move') {
+        crop.x = Math.max(0, Math.min(1 - o.w, o.x + dx));
+        crop.y = Math.max(0, Math.min(1 - o.h, o.y + dy));
+      } else if (drag.mode === 'new') {
+        const x1 = Math.min(drag.sx, nx), x2 = Math.max(drag.sx, nx);
+        const y1 = Math.min(drag.sy, ny), y2 = Math.max(drag.sy, ny);
+        if (x2 - x1 >= MIN_W && y2 - y1 >= MIN_H) {
+          crop = { x: x1, y: y1, w: x2 - x1, h: y2 - y1 };
+        }
+      } else {
+        let x1 = o.x, y1 = o.y, x2 = o.x + o.w, y2 = o.y + o.h;
+        if (drag.mode.includes('w')) x1 = Math.min(x2 - MIN_W, Math.max(0, nx));
+        if (drag.mode.includes('e')) x2 = Math.max(x1 + MIN_W, Math.min(1, nx));
+        if (drag.mode.includes('n')) y1 = Math.min(y2 - MIN_H, Math.max(0, ny));
+        if (drag.mode.includes('s')) y2 = Math.max(y1 + MIN_H, Math.min(1, ny));
+        crop = { x: x1, y: y1, w: x2 - x1, h: y2 - y1 };
+      }
+      if (Math.abs(dx) >= 0.008 || Math.abs(dy) >= 0.008) userSelectedCrop = true;
+      paintCropWin();
+    });
+    const endMobDrag = e => {
+      if (!drag) return;
+      if (e && e.pointerId !== undefined && e.pointerId !== drag.pointerId) return;
+      drag = null;
+    };
+    layer.addEventListener('pointerup', endMobDrag);
+    layer.addEventListener('pointercancel', endMobDrag);
+    layer.addEventListener('lostpointercapture', endMobDrag);
+    window.addEventListener('resize', () => {
+      if (!baseCanvas || stageResizeRaf) return;
+      stageResizeRaf = requestAnimationFrame(() => {
+        stageResizeRaf = 0;
+        if (!baseCanvas) return;
+        const stg = $('mobStageBox');
+        const sw = stg.clientWidth || 330, sh = stg.clientHeight || 320;
+        if (sw !== lastStageW || sh !== lastStageH) renderPreviewStage(false);
+      });
+    });
+  })();
+
+  // Adaptive byte-budget JPEG encoder: guarantees each HTTP POST stays well below Nginx 1MB body limit!
+  function encodeCanvasUnderBudget(srcCanvas, maxB64Len, initQ) {
+    let q = initQ || 0.82;
+    let url = srcCanvas.toDataURL('image/jpeg', q);
+    while (url.length > maxB64Len && q > 0.50) {
+      q = Math.round((q - 0.12) * 100) / 100;
+      url = srcCanvas.toDataURL('image/jpeg', q);
+    }
+    if (url.length <= maxB64Len) return url;
+    const shrink = Math.max(0.55, Math.sqrt(maxB64Len / url.length) * 0.92);
+    const sw = Math.max(64, Math.round(srcCanvas.width * shrink));
+    const sh = Math.max(64, Math.round(srcCanvas.height * shrink));
+    const tmp = document.createElement('canvas');
+    tmp.width = sw; tmp.height = sh;
+    tmp.getContext('2d').drawImage(srcCanvas, 0, 0, sw, sh);
+    const out = tmp.toDataURL('image/jpeg', 0.68);
+    releaseCanvas(tmp);
+    return out;
+  }
+
+  function exportCroppedJpegB64(maxB64 = 380000) {
+    const sx = Math.round(crop.x * baseCanvas.width);
+    const sy = Math.round(crop.y * baseCanvas.height);
+    const sw = Math.max(24, Math.min(baseCanvas.width - sx, Math.round(crop.w * baseCanvas.width)));
+    const sh = Math.max(24, Math.min(baseCanvas.height - sy, Math.round(crop.h * baseCanvas.height)));
+    const maxCropSide = 1400;
+    const sc = Math.min(1, maxCropSide / Math.max(sw, sh));
+    const cw = Math.max(24, Math.round(sw * sc));
+    const ch = Math.max(24, Math.round(sh * sc));
+    const c = document.createElement('canvas');
+    c.width = cw; c.height = ch;
+    const ctx = c.getContext('2d', { willReadFrequently: true });
+    ctx.drawImage(baseCanvas, sx, sy, sw, sh, 0, 0, cw, ch);
+    if (filterMode !== 'raw') applyDocumentCrispFilter(ctx, cw, ch, filterMode === 'pencil');
+    const minCardH = Math.max(ch, Math.min(480, Math.round(cw * 0.22)));
+    if (minCardH > ch + 8) {
+      const card = document.createElement('canvas');
+      card.width = cw; card.height = minCardH;
+      const cctx = card.getContext('2d');
+      cctx.fillStyle = '#ffffff';
+      cctx.fillRect(0, 0, cw, minCardH);
+      cctx.drawImage(c, 0, Math.round((minCardH - ch) / 2));
+      releaseCanvas(c);
+      const outCard = encodeCanvasUnderBudget(card, maxB64, 0.82);
+      releaseCanvas(card);
+      return outCard;
+    }
+    const out = encodeCanvasUnderBudget(c, maxB64, 0.82);
+    releaseCanvas(c);
+    return out;
+  }
+
+  function exportFullPageJpegB64(maxB64 = 720000) {
+    const maxPageSide = 1400;
+    const sc = Math.min(1, maxPageSide / Math.max(baseCanvas.width, baseCanvas.height));
+    if (sc >= 0.99) return encodeCanvasUnderBudget(baseCanvas, maxB64, 0.76);
+    const pw = Math.max(32, Math.round(baseCanvas.width * sc));
+    const ph = Math.max(32, Math.round(baseCanvas.height * sc));
+    const c = document.createElement('canvas');
+    c.width = pw; c.height = ph;
+    c.getContext('2d').drawImage(baseCanvas, 0, 0, pw, ph);
+    const out = encodeCanvasUnderBudget(c, maxB64, 0.76);
+    releaseCanvas(c);
+    return out;
+  }
+
+  async function postMobileJson(payload, timeoutMs = 22000, extraOpts = {}) {
+    const r = await fetchWithTimeout('api/mobile/upload', Object.assign({
+      method: 'POST',
+      cache: 'no-store',
+      headers: { 'Content-Type': 'application/json', 'X-Tutor-Mobile': '1' },
+      body: JSON.stringify(payload),
+    }, extraOpts), timeoutMs);
+    const j = await r.json().catch(() => null);
+    return { r, j };
+  }
+
+  window.sendParentNudge = async (presetTxt = '') => {
+    const inp = $('inpNudge');
+    const txt = String(presetTxt || (inp && inp.value) || '').trim();
+    if (!txt) {
+      toast('请先点选上方快捷锦囊或输入一句鼓励的话哦');
+      return;
+    }
+    try {
+      const { r, j } = await postMobileJson({ action: 'parent_nudge', text: txt }, 8000);
+      if (r.ok && j && j.ok) {
+        if (!presetTxt && inp) inp.value = '';
+        toast(j.message || '💌 伴学锦囊已投送到家里大屏！');
+      } else {
+        toast((j && j.error) || '锦囊发送失败');
+      }
+    } catch (e) {
+      toast('网络异常，请检查 VPN 连接');
+    }
+  };
+
+  let clearArmT = 0;
+  window.submitMobile = async (action, teachMode = 'standard') => {
+    if (busy) return;
+    if (action === 'clear_stage') {
+      const cb = $('btnClearStage');
+      if (!clearArmT) {
+        if (cb) { cb.innerHTML = '<svg class="mi"><use href="#mi-trash"/></svg>再点一次清空'; cb.classList.add('armed'); }
+        clearArmT = setTimeout(() => { clearArmT = 0; if (cb) { cb.innerHTML = '<svg class="mi"><use href="#mi-trash"/></svg>清空作业夹'; cb.classList.remove('armed'); } }, 3000);
+        return;
+      }
+      clearTimeout(clearArmT); clearArmT = 0;
+      if (cb) { cb.innerHTML = '<svg class="mi"><use href="#mi-trash"/></svg>清空作业夹'; cb.classList.remove('armed'); }
+    }
+    const note = $('inpNote').value.trim();
+    const pedagogy = $('selPedagogy').value || 'auto';
+    const mode = $('selMode').value || 'fast';
+    if ((action === 'stage_only' || action === 'check_page' || action === 'cowrite_check') && !baseCanvas && !((action === 'check_page' || action === 'cowrite_check') && serverHasStaged)) {
+      toast('请先拍照、选图或粘贴一张整页已作答作业图');
+      return;
+    }
+    if (action === 'explain_now' && !baseCanvas && !note) {
+      toast('请先拍照/选图框选题目，或在输入框直接填写文字题');
+      return;
+    }
+    busy = true;
+    $('btnExplainNow').disabled = true;
+    if ($('btnDiagnoseDraft')) $('btnDiagnoseDraft').disabled = true;
+    if ($('btnCheckPage')) $('btnCheckPage').disabled = true;
+    if ($('btnMobCowrite')) $('btnMobCowrite').disabled = true;
+    $('btnStageOnly').disabled = true;
+    try {
+      if (action === 'open_phone_view' || action === 'clear_stage' || action === 'trigger_variant' || action === 'trigger_mistake_retest' || action === 'cowrite_enroll_warns') {
+        const timeoutAct = (action === 'trigger_variant' || action === 'trigger_mistake_retest') ? 40000 : 10000;
+        if (action === 'trigger_variant') toast('🎯 正在让 AI 老师在大屏生成一道同类巩固练习…');
+        if (action === 'trigger_mistake_retest') toast('🎯 正在从错题本挑题脱敏改编并投屏到大屏…');
+        if (action === 'cowrite_enroll_warns') toast('📌 正在将大屏静默伴写的易错题收录进错题本…');
+        const actPayload = { action, pedagogy, mode };
+        if (action === 'open_phone_view' && loadedServerPageId) actPayload.page_id = loadedServerPageId;
+        if (action === 'trigger_variant' && activeLessonId) actPayload.session_id = activeLessonId;
+        const { r, j } = await postMobileJson(actPayload, timeoutAct);
+        if (r.ok && j && j.ok) {
+          if (action === 'clear_stage') {
+            abortStageSilent();
+            loadedServerPageId = '';
+            pendingCheckPageId = '';
+            pendingPrevSummary = '';
+            pendingPrevCheckSeq = -1;
+            curDoneCrops = [];
+            curCheckMarks = [];
+            pendingRotSteps = 0;
+            if (baseCanvas) {
+              pageDirtyForServer = true;
+              if (!clientPageId) clientPageId = 'cp_' + Date.now().toString(36);
+              paintDoneMarks();
+            }
+          }
+          if (j.cowrite) {
+            lastCowriteBrief = j.cowrite;
+            renderMobCowritePanel(j.cowrite);
+          }
+          if (action === 'cowrite_enroll_warns') {
+            if (Array.isArray(j.mistakes)) mobileMistakes = j.mistakes;
+            if (Array.isArray(j.enrolled_ids) && j.enrolled_ids.length) {
+              printSelIds.clear();
+              const prevCwIds = mobileMistakes.filter(m => m && !m.graduated && String(m.error_tag || '').startsWith('伴写·')).map(m => m.id);
+              [...new Set([...j.enrolled_ids, ...prevCwIds].filter(Boolean))].slice(0, 6).forEach(id => printSelIds.add(id));
+              printSelectionInited = true;
+            }
+          }
+          toast(j.message || '操作成功');
+          pollMobileState();
+          if (action === 'cowrite_enroll_warns') setTimeout(pollMobileState, 550);
+          if (j.pending) {
+            setTimeout(pollMobileState, 2200);
+            setTimeout(pollMobileState, 5000);
+            setTimeout(pollMobileState, 8500);
+          }
+        } else {
+          toast((j && j.error) || '操作失败');
+        }
+        return;
+      }
+
+      if (action === 'check_page' && !baseCanvas && serverHasStaged) {
+        await window.loadStagedPageFromServer(activeServerPageId);
+        if (!baseCanvas) return;
+      } else if (action === 'cowrite_check' && !baseCanvas && serverHasStaged) {
+        await window.loadStagedPageFromServer(activeServerPageId);
+        if (!baseCanvas) return;
+      }
+
+      const payload = {
+        action,
+        teach_mode: teachMode === 'diagnose_draft' ? 'diagnose_draft' : 'standard',
+        question: note,
+        pedagogy,
+        mode,
+        crisp: filterMode !== 'raw',
+        pencil_boost: filterMode === 'pencil',
+        crop_box: baseCanvas ? crop : null,
+        client_page_id: baseCanvas ? clientPageId : '',
+        page_id: baseCanvas ? loadedServerPageId : '',
+        rot_steps: baseCanvas ? pendingRotSteps : 0,
+      };
+      if (baseCanvas) {
+        if (action === 'explain_now') {
+          // Phase 1: send ONLY the compact single-question crop (<380KB) for fastest start & zero Nginx 413 risk!
+          payload.crop_b64 = exportCroppedJpegB64(380000);
+        } else {
+          payload.page_b64 = exportFullPageJpegB64(720000);
+        }
+      }
+      if ((action === 'check_page' || action === 'cowrite_check') && !pageDirtyForServer && loadedServerPageId) {
+        delete payload.page_b64;
+      }
+      if (action === 'cowrite_check') {
+        payload.cowrite_scope = ((baseCanvas || serverHasStaged) && userSelectedCrop && (crop.w < 0.90 || crop.h < 0.82)) ? 'crop' : 'page';
+        if (!baseCanvas && serverHasStaged && activeServerPageId) {
+          payload.page_id = activeServerPageId;
+        }
+      }
+      toast(
+        action === 'cowrite_check'
+          ? '👀 初三双核模型正在静默核查本页步骤并投送大屏伴写看板…'
+          : (action === 'check_page'
+              ? '📋 AI 老师正在整页巡检批改（做对免打扰·只框错题）…'
+              : (action === 'stage_only' ? '正在将整页作业存入大屏作业夹…' : '正在极速投屏到家里大屏启动启发讲题…'))
+      );
+      const reqTimeout = (action === 'check_page' || action === 'cowrite_check') ? 35000 : 22000;
+      let { r, j } = await postMobileJson(payload, reqTimeout);
+      if (r.status === 413 && baseCanvas) {
+        if (payload.crop_b64) payload.crop_b64 = exportCroppedJpegB64(220000);
+        if (payload.page_b64) payload.page_b64 = exportFullPageJpegB64(420000);
+        ({ r, j } = await postMobileJson(payload, reqTimeout));
+      }
+      if (r.ok && j && j.ok) {
+        toast(j.message || (action === 'stage_only' ? '整页已存入大屏「手机拍题」作业夹！' : '已在大屏电子黑板开始启发讲题！'));
+        if (action === 'cowrite_check') {
+          pageDirtyForServer = false;
+          pendingRotSteps = 0;
+          if (j.page_id) loadedServerPageId = j.page_id;
+          if (j.pending) {
+            pendingCowriteSeq = (j.prev_cowrite_seq != null) ? Number(j.prev_cowrite_seq) : lastCowriteSeqSeen;
+            setTimeout(pollMobileState, 2500);
+            setTimeout(pollMobileState, 5500);
+            setTimeout(pollMobileState, 9500);
+            setTimeout(pollMobileState, 14000);
+          } else {
+            pendingCowriteSeq = -1;
+            if (Array.isArray(j.check_marks)) {
+              curCheckMarks = j.check_marks;
+              const firstFix = curCheckMarks.find(m => m && m.status !== 'ok' && m.box);
+              if (firstFix && !userSelectedCrop) crop = Object.assign({}, firstFix.box);
+              if (baseCanvas) { paintCropWin(); paintDoneMarks(); }
+            }
+          }
+        } else if (action === 'check_page') {
+          pageDirtyForServer = false;
+          pendingRotSteps = 0;
+          if (j.page_id) loadedServerPageId = j.page_id;
+          if (j.pending) {
+            pendingCheckPageId = loadedServerPageId || activeServerPageId || '1';
+            const prevPgObj = serverPages.find(p => p.id === (loadedServerPageId || activeServerPageId));
+            pendingPrevSummary = prevPgObj ? String(prevPgObj.check_summary || '') : '';
+            pendingPrevCheckSeq = (j.prev_check_seq != null) ? Number(j.prev_check_seq) : (prevPgObj ? Number(prevPgObj.check_seq || 0) : 0);
+            setTimeout(pollMobileState, 2200);
+            setTimeout(pollMobileState, 5000);
+            setTimeout(pollMobileState, 8500);
+            setTimeout(pollMobileState, 12500);
+          } else {
+            pendingCheckPageId = '';
+            pendingPrevCheckSeq = -1;
+            curCheckMarks = Array.isArray(j.check_marks) ? j.check_marks : [];
+            const firstFix = curCheckMarks.find(m => m && m.status !== 'ok' && m.box);
+            if (firstFix) crop = Object.assign({}, firstFix.box);
+            if (baseCanvas) { paintCropWin(); paintDoneMarks(); }
+          }
+        } else if (action === 'stage_only') {
+          pageDirtyForServer = false;
+          pendingRotSteps = 0;
+          if (j.page_id) loadedServerPageId = j.page_id;
+        } else if (action === 'explain_now') {
+          if (!baseCanvas) $('inpNote').value = '';
+          // Phase 2: silently archive the full worksheet page in background so big-screen re-crop is ready!
+          if (baseCanvas && pageDirtyForServer) {
+            abortStageSilent();
+            const sentRot = pendingRotSteps;
+            const reqClientKey = clientPageId;
+            pageDirtyForServer = false;
+            pendingRotSteps = 0;
+            const ctl = new AbortController();
+            stageSilentCtl = ctl;
+            stageSilentInFlight = true;
+            const createdSid = (j.session && j.session.id) ? j.session.id : '';
+            const bgPage = exportFullPageJpegB64(700000);
+            postMobileJson({
+              action: 'stage_silent',
+              session_id: createdSid,
+              page_b64: bgPage,
+              question: note,
+              crop_box: crop,
+              client_page_id: reqClientKey,
+              page_id: loadedServerPageId,
+              rot_steps: sentRot,
+            }, 20000, { signal: ctl.signal })
+              .then(res => {
+                if (stageSilentCtl === ctl) {
+                  stageSilentCtl = null;
+                  stageSilentInFlight = false;
+                }
+                if (!ctl.signal.aborted && clientPageId === reqClientKey) {
+                  if (res.r && res.r.ok && res.j && res.j.page_id) loadedServerPageId = res.j.page_id;
+                  else { pageDirtyForServer = true; pendingRotSteps = sentRot; }
+                }
+                if (!ctl.signal.aborted) pollMobileState();
+              })
+              .catch(() => {
+                if (stageSilentCtl === ctl) {
+                  stageSilentCtl = null;
+                  stageSilentInFlight = false;
+                }
+                if (!ctl.signal.aborted && clientPageId === reqClientKey) {
+                  pageDirtyForServer = true;
+                  pendingRotSteps = sentRot;
+                }
+              });
+          }
+        }
+        pollMobileState();
+      } else {
+        toast((j && j.error) || (r.status === 413 ? '照片分辨率过高，请缩小绿框再试' : '投屏发送失败，请稍后重试'));
+      }
+    } catch (e) {
+      toast(e && e.name === 'AbortError' ? '上传超时，请检查 VPN 信号后重试' : '网络异常，请确认手机已开启 VPN 连接');
+    } finally {
+      busy = false;
+      $('btnExplainNow').disabled = false;
+      if ($('btnDiagnoseDraft')) $('btnDiagnoseDraft').disabled = false;
+      if ($('btnCheckPage')) $('btnCheckPage').disabled = false;
+      if ($('btnMobCowrite')) $('btnMobCowrite').disabled = false;
+      $('btnStageOnly').disabled = false;
+    }
+  };
+
+  function renderMobileTrayPills(pages) {
+    const html = (pages || []).map(pg => {
+      const isCur = loadedServerPageId ? pg.id === loadedServerPageId : !!pg.active;
+      const dc = Number(pg.done_count) || 0;
+      const dSuffix = dc > 0 ? ` · 已讲 ${dc}` : '';
+      return `<button type="button" class="tray-pill${isCur ? ' on' : ''}" onclick="loadStagedPageFromServer(${jsAttrStr(pg.id)}, ${Number(pg.idx) || 1})"><svg class="mi"><use href="#mi-page"/></svg>第${Number(pg.idx) || 1}页${dSuffix}</button>`;
+    }).join('');
+    const p1 = $('reuseTrayPills');
+    if (p1) p1.innerHTML = html || '<button type="button" class="reuse-btn" onclick="loadStagedPageFromServer()">载入框题</button>';
+    const p2 = $('liveTrayPills');
+    if (p2) p2.innerHTML = html;
+  }
+
+  let embedActive = true;
+  let mobPollTimer = null;
+  let wasZeroWidth = (window.innerWidth === 0);
+  window.addEventListener('resize', () => {
+    const nowZero = (window.innerWidth === 0);
+    if (wasZeroWidth && !nowZero && embedActive && !document.hidden && !pollInFlight) pollMobileState();
+    wasZeroWidth = nowZero;
+  });
+
+  async function pollMobileState() {
+    if (!embedActive || document.hidden || pollInFlight || (window.parent !== window && window.innerWidth === 0)) return;
+    pollInFlight = true;
+    try {
+      const hdrs = mobileStateEtag ? { 'If-None-Match': mobileStateEtag } : undefined;
+      const r = await fetchWithTimeout('api/mobile/state', { cache: 'no-store', headers: hdrs }, 7000);
+      if (r.status === 304) {
+        $('connDot').classList.add('ok');
+        $('connTxt').textContent = '已连上家里的大屏';
+        return;
+      }
+      const et = r.headers.get('ETag');
+      if (et) mobileStateEtag = et;
+      const j = await r.json().catch(() => null);
+      if (!r.ok || !j || !j.ok) throw new Error('bad');
+      $('connDot').classList.add('ok');
+      $('connTxt').textContent = '已连上家里的大屏';
+      serverHasStaged = !!j.has_staged_page;
+      activeServerPageId = String(j.active_page_id || '');
+      serverPages = Array.isArray(j.pages) ? j.pages : [];
+      mobileMistakes = Array.isArray(j.mistakes) ? j.mistakes : [];
+      if (j.cowrite && typeof j.cowrite === 'object') {
+        lastCowriteBrief = j.cowrite;
+        const cwSeqNow = Number(j.cowrite.seq) || 0;
+        const cwPhNow = String(j.cowrite.phase || 'off');
+        if (pendingCowriteSeq >= 0 && cwSeqNow > pendingCowriteSeq && cwPhNow !== 'gatekeeping' && cwPhNow !== 'reviewing') {
+          pendingCowriteSeq = -1;
+          toast(`👀 静默伴写核查完成：已核 ${j.cowrite.total_count || 0} 题（待自查 ${j.cowrite.warn_open_count || 0} 处）！`);
+        }
+        lastCowriteSeqSeen = cwSeqNow;
+        renderMobCowritePanel(j.cowrite);
+      } else {
+        renderMobCowritePanel(null);
+      }
+      if (j.dictation && typeof j.dictation === 'object') {
+        lastDictBrief = j.dictation;
+        renderMobDictPanel(j.dictation);
+      } else {
+        lastDictBrief = null;
+        renderMobDictPanel(null);
+      }
+      if (loadedServerPageId && !pageDirtyForServer && !stageSilentInFlight) {
+        const curPg = serverPages.find(p => p.id === loadedServerPageId);
+        if (curPg) {
+          if (Array.isArray(curPg.done_crops)) curDoneCrops = curPg.done_crops;
+          if (Array.isArray(curPg.check_marks)) curCheckMarks = curPg.check_marks;
+          const curChkSeq = (curPg.check_seq != null) ? Number(curPg.check_seq) : -1;
+          const checkSeqAdvanced = (pendingPrevCheckSeq >= 0 && curChkSeq >= 0)
+            ? (curChkSeq > pendingPrevCheckSeq)
+            : (curCheckMarks.length > 0 || (curPg.check_summary && curPg.check_summary !== pendingPrevSummary));
+          if (pendingCheckPageId && curPg.id === pendingCheckPageId && checkSeqAdvanced) {
+            pendingCheckPageId = '';
+            pendingPrevSummary = '';
+            pendingPrevCheckSeq = -1;
+            if (curPg.check_error) {
+              toast('⚠️ 整页批改未完成：' + curPg.check_error);
+            } else {
+              const firstFixP = curCheckMarks.find(m => m && m.status !== 'ok' && m.box);
+              if (firstFixP) crop = Object.assign({}, firstFixP.box);
+              if (baseCanvas) paintCropWin();
+              toast('📋 整页批改完成：' + (curPg.check_summary || '点击橙色错题框即可启动启发订正') + '！');
+            }
+          }
+          paintDoneMarks();
+        } else {
+          loadedServerPageId = '';
+          curDoneCrops = [];
+          curCheckMarks = [];
+          if (baseCanvas) {
+            pageDirtyForServer = true;
+            if (!clientPageId) clientPageId = 'cp_' + Date.now().toString(36);
+            paintDoneMarks();
+          }
+        }
+      }
+      renderMobileTrayPills(serverPages);
+      if (serverHasStaged && !baseCanvas) {
+        $('reuseTxt').innerHTML = `<svg class="mi"><use href="#mi-page"/></svg>大屏作业夹里有 ${serverPages.length || 1} 页作业，点页码载入后再框题`;
+        $('reuseBar').classList.add('show');
+      } else {
+        $('reuseBar').classList.remove('show');
+      }
+      const act = j.active_lesson;
+      activeLessonId = (act && act.id) ? act.id : '';
+      const mbSum = j.mistake_summary || {};
+      const actMb = Number(mbSum.active_count) || 0;
+      const dueMb = Number(mbSum.due_count) || 0;
+      const canRemoteVar = !!(act && act.id && (act.solved || act.peeked));
+      const canRemoteMb = actMb > 0;
+      $('liveStageActs').classList.add('show');
+      $('btnOpenPhoneView').style.display = serverHasStaged ? '' : 'none';
+      $('btnClearStage').style.display = serverHasStaged ? '' : 'none';
+      $('btnRemoteVariant').style.display = canRemoteVar ? '' : 'none';
+      if (canRemoteVar) {
+        const vTxt = act.essay_critique ? '投屏同类升格练' : (act.writing_task ? '投屏同类写作练' : '投屏同类巩固题');
+        $('btnRemoteVariant').innerHTML = `<svg class="mi"><use href="#mi-target"/></svg>${vTxt}`;
+      }
+      if ($('btnRemoteMistake')) {
+        $('btnRemoteMistake').style.display = canRemoteMb ? '' : 'none';
+        $('btnRemoteMistakeTxt').textContent = dueMb > 0 ? `投屏今日到期错题复测 (${dueMb}道)` : `投屏错题本脱敏复测 (${actMb}道)`;
+      }
+      if ($('btnRemoteCwEnroll')) {
+        const cwUnrec = (j.cowrite && j.cowrite.digest && Number(j.cowrite.digest.unrecorded_warn_count)) || 0;
+        $('btnRemoteCwEnroll').style.display = cwUnrec > 0 ? '' : 'none';
+        if (cwUnrec > 0 && $('btnRemoteCwEnrollTxt')) {
+          $('btnRemoteCwEnrollTxt').textContent = `收录伴写易错题入错题本 (${cwUnrec}道)`;
+        }
+        if ($('btnRemoteCwPrint')) {
+          const cwEnrolledList = mobileMistakes.filter(m => m && !m.graduated && String(m.error_tag || '').startsWith('伴写·'));
+          const cwSheetN = cwUnrec + cwEnrolledList.length;
+          $('btnRemoteCwPrint').style.display = cwSheetN > 0 ? '' : 'none';
+          if (cwSheetN > 0 && $('btnRemoteCwPrintTxt')) {
+            const dispSheetN = Math.min(6, cwSheetN);
+            const dispEnrN = Math.min(6, cwEnrolledList.length);
+            $('btnRemoteCwPrintTxt').textContent = cwUnrec > 0 ? `一键伴写错题 A4 清卷 (${dispSheetN}道)` : `生成伴写错题 A4 清卷 (${dispEnrN}道)`;
+          }
+        }
+      }
+      if ($('nudgeBox')) {
+        const hasActLesson = !!(act && act.id && !act.solved && act.status !== 'error');
+        const isSilNudge = !!(hasActLesson && act.silent_start);
+        const hasCwNudge = !hasActLesson && !!(j.cowrite && (j.cowrite.enabled || Number(j.cowrite.warn_open_count) > 0));
+        const showNudge = hasActLesson || hasCwNudge;
+        $('nudgeBox').classList.toggle('show', showNudge);
+        const ndHd = $('nudgeBox').querySelector('.nudge-hd');
+        if (ndHd) {
+          ndHd.innerHTML = `<svg class="mi"><use href="#mi-heart"/></svg>` + (
+            (hasCwNudge || isSilNudge) ? '给伴写看板递静默锦囊（轻贴屏幕·零语音不打扰）' : '给大屏递伴学锦囊（不报答案，温柔点拨）'
+          );
+        }
+        const ncRow = $('nudgeChipsRow');
+        if (showNudge && ncRow) {
+          const nKind = hasCwNudge
+            ? 'cw'
+            : ((act.essay_critique || act.writing_task) ? 'wr' : (['chinese', 'english', 'history', 'civics'].includes(act.subject || '') || (['biology', 'geography'].includes(act.subject || '') && !/℃|摄氏度|海拔.*米|比例尺|放大.*倍/.test(act.question || '')) ? 'hum' : 'math'));
+          if (ncRow.dataset.kind !== nKind) {
+            ncRow.dataset.kind = nKind;
+            const chipSet = nKind === 'cw'
+              ? [['先查正负号', '写得很专注！有道题先回头查一下移项和括号正负号哦！'], ['代回验增根', '分式或含参题算完记得代回原式验一下分母和边界条件哦！'], ['喝口水缓一缓', '已经连续专注写了不少题啦，喝口水活动下肩膀继续加油！']]
+              : (nKind === 'wr'
+                  ? [['夸夸闪光点', '写得很认真！先看看老师夸你的闪光点哦！'], ['慢镜头细节', '试着把那一刻拆成连续动作和五感慢镜头！'], ['首尾扣题眼', '想想最后一句怎么轻轻回扣题目里的题眼词！']]
+                  : (nKind === 'hum'
+                      ? [['圈题眼标志', '别急，先在原句里圈出关键时间或设问标志词！'], ['回原文寻证', '回到原文或材料里找准对应的词句依据哦！'], ['分点理条理', '按①②分清角度再选，小心片面干扰项哦！']]
+                      : [['别急看已知', '别急，先看清图上的已知条件哦！'], ['盯住红虚线', '盯住黑板红色虚线，想想两段什么关系！'], ['核对单位', '算完记得代回原题核对一下单位哦！']]));
+            ncRow.innerHTML = chipSet.map(([lbl, msg]) => `<button type="button" class="nudge-chip" onclick="sendParentNudge(${jsAttrStr(msg)})">${escHtml(lbl)}</button>`).join('');
+          }
+        }
+      }
+      const mbMeta = actMb > 0 ? ` · 错题本待复测 ${actMb} 道` : '';
+      $('liveStageTxt').textContent = (serverHasStaged ? `作业夹：${serverPages.length || 1} 页` : '作业夹：暂无') + mbMeta;
+      if (act && act.id) {
+        const qShow = act.question ? act.question.slice(0, 76) + (act.question.length > 76 ? '…' : '') : act.title;
+        let stLbl = '';
+        if (act.peeked && act.solved) {
+          stLbl = '👀 已完成浏览（曾开启家长全览，可点重闯巩固）';
+        } else if (act.feynman_ok && !act.peeked) {
+          stLbl = '👑 孩子已费曼讲透通关！';
+        } else if (act.solo_ace && !act.peeked) {
+          stLbl = `👑 孩子去拐杖独立秒杀通关（${act.solo_sec || 1}s）！`;
+        } else if (act.solved) {
+          const raTag = act.read_aloud_ok ? ' · 🎙️跟读达标' : '';
+          const isWrAct = !!(act.essay_critique || act.writing_task);
+          stLbl = (act.weak_step > 0
+            ? (isWrAct ? `💪 已完成构思升格（第 ${act.weak_step} 关曾看点拨）` : `💪 已通关（第 ${act.weak_step} 关曾借提示，已入错题本）`)
+            : '🏆 孩子已独立满星通关！') + raTag;
+        } else if (act.peeked) {
+          stLbl = act.feynman_ok ? '🔓 家长全览模式（已完成费曼复盘）' : '🔓 大屏已展开家长全览模式';
+        } else if (act.status === 'error') {
+          stLbl = `⚠️ 本题加载未完成：${act.error || '请重新点击投屏开讲'}`;
+        } else if (act.status === 'streaming' || act.status === 'thinking') {
+          stLbl = act.essay_critique ? '✍️ AI 老师正在品读习作闪光点与升格空间…' : (act.writing_task ? '✍️ AI 老师正在审题立意并搭建写作积木…' : (act.teach_mode === 'diagnose_draft' ? '🔍 AI 老师正在审阅草稿定位关键步…' : '🤖 AI 老师正在识别图形与绘制黑板…'));
+        } else {
+          const attTag = act.step_attempts > 0 ? ` · 本关已试 ${act.step_attempts} 次` : '';
+          const tTag = act.step_title ? `「${act.step_title}」` : '';
+          stLbl = `🧭 正在闯第 ${act.current_step || 1}/${act.step_total || 4} 关${tTag}${attTag}`;
+        }
+        const modeTag = act.essay_critique ? '【习作精批】' : (act.writing_task ? '【作文构思】' : (act.teach_mode === 'diagnose_draft' ? '【草稿诊断】' : '【当前题目】'));
+        $('liveLessonBox').textContent = `${modeTag}${qShow}`;
+        $('liveStepTxt').textContent = stLbl;
+        $('btnNextSamePage').style.display = (baseCanvas || serverHasStaged) ? '' : 'none';
+      } else if (j.cowrite && (j.cowrite.enabled || Number(j.cowrite.total_count) > 0)) {
+        const cw = j.cowrite;
+        const cwItems = Array.isArray(cw.recent_items) ? cw.recent_items : [];
+        const cwTop = cwItems.find(x => x && x.status === 'warn' && !x.resolved) || cwItems[0] || null;
+        const cwHead = cwTop
+          ? `${cwTop.no}${cwTop.topic ? '·' + cwTop.topic : ''}：${cwTop.checkpoint}`
+          : (cw.last_note || '零语音静默守护中，停笔自动核查');
+        const dgTopics = (cw.digest && Array.isArray(cw.digest.weak_topics) && cw.digest.weak_topics.length)
+          ? ` · 易错：${cw.digest.weak_topics.slice(0, 2).join('/')}`
+          : '';
+        $('liveLessonBox').textContent = `【静默伴写${cw.enabled ? '·守护中' : ''}】${cwHead}`;
+        $('liveStepTxt').textContent = `已核 ${cw.total_count || 0} 题：✅ 全对 ${cw.ok_count || 0} · ⚠️ 待自查 ${cw.warn_open_count || 0}${dgTopics}`;
+        $('btnNextSamePage').style.display = (baseCanvas || serverHasStaged) ? '' : 'none';
+      } else if (j.cowrite && Array.isArray(j.cowrite.recent_sessions) && j.cowrite.recent_sessions.length > 0) {
+        const rs0 = j.cowrite.recent_sessions[0];
+        const rsTopics = (Array.isArray(rs0.weak_topics) && rs0.weak_topics.length) ? ` · 曾留意：${rs0.weak_topics.join('/')}` : '';
+        $('liveLessonBox').textContent = `大屏当前空闲（上次静默伴写：核对 ${rs0.total} 题 · 一次全对率 ${rs0.accuracy_pct}%${rsTopics}）。`;
+        $('liveStepTxt').textContent = '引导模式：先想后看 · 防剧透闯关';
+        $('btnNextSamePage').style.display = (baseCanvas || serverHasStaged) ? '' : 'none';
+      } else if (j.dictation && Number(j.dictation.total_count) > 0) {
+        const dc = j.dictation;
+        $('liveLessonBox').textContent = dc.phase === 'graded'
+          ? `【自助听写·已批改】《${dc.title || '听写'}》正确率 ${dc.accuracy_pct || 0}%（全对 ${dc.ok_count || 0}/${dc.total_count}）`
+          : `【自助听写·待播报】《${dc.title || '听写'}》第 ${(Number(dc.current_idx) || 0) + 1}/${dc.total_count} 个词`;
+        $('liveStepTxt').textContent = dc.summary || '写完可在上方拍听写本上传秒批，或在大屏高拍仪下秒批';
+        $('btnNextSamePage').style.display = (baseCanvas || serverHasStaged) ? '' : 'none';
+      } else {
+        $('liveLessonBox').textContent = '大屏当前空闲，拍一道题或输入文字即可在家里电子黑板开启 4 步启发式引导。';
+        $('liveStepTxt').textContent = '引导模式：先想后看 · 防剧透闯关';
+        $('btnNextSamePage').style.display = (baseCanvas || serverHasStaged) ? '' : 'none';
+      }
+    } catch (e) {
+      $('connDot').classList.remove('ok');
+      $('connTxt').textContent = '未连通大屏（请确认 VPN 已开启）';
+    } finally {
+      pollInFlight = false;
+    }
+  }
+
+  function renderMobCowritePanel(cw) {
+    const box = $('mobCwPanel');
+    if (!box) return;
+    if (!cw || (!cw.enabled && !(Number(cw.total_count) > 0) && !cw.camera_connected)) {
+      box.style.display = 'none';
+      return;
+    }
+    box.style.display = 'flex';
+    const pmCur = String(cw.pause_mode || 'std');
+    const pmNxt = pmCur === 'std' ? 'fast' : (pmCur === 'fast' ? 'deep' : 'std');
+    const pmLbl = pmCur === 'fast' ? '⚡ 快检2.4s' : (pmCur === 'deep' ? '🧠 深思6.5s' : '⏱ 停笔3.8s');
+    const warnN = Number(cw.warn_open_count) || 0;
+    const unrecN = (cw.digest && Number(cw.digest.unrecorded_warn_count)) || 0;
+    const mastN = (cw.digest && Number(cw.digest.mastered_count)) || 0;
+    const focusMinM = (cw.digest && Number(cw.digest.focus_min)) || 0;
+    const recList = (cw.digest && Array.isArray(cw.digest.recurring_topics)) ? cw.digest.recurring_topics : [];
+    const recLine = recList.length ? `<span style="color:var(--amber);">🔁 高频复现：${escHtml(recList.join(' / '))}</span>` : '';
+    const mobSubjMap = { math: '数', physics: '物', chemistry: '化', english: '英', chinese: '语' };
+    const items = Array.isArray(cw.recent_items) ? cw.recent_items : [];
+    const chipsHtml = items.slice(0, 5).map(it => {
+      const cls = (it.status === 'warn' && !it.resolved) ? 'warn' : 'ok';
+      const icoTag = (it.status === 'warn' && !it.resolved) ? '⚠️' : (it.variant_passed ? '👑' : (it.blackboard_solved ? '🏆' : ((it.corrected_pass || it.resolved) ? '🎉' : '✅')));
+      const sTag = mobSubjMap[it.subject] ? `[${mobSubjMap[it.subject]}] ` : '';
+      const gradPre = it.mistake_graduated ? '🏅' : '';
+      const starPre = it.starred ? '⭐' : '';
+      const snapHint = it.has_snap ? ' · 点看原图' : '';
+      return `<button type="button" class="mob-cw-chip ${cls}" onclick="openMobCoWriteItem(${jsAttrStr(it.id || '')})">${gradPre}${starPre}${icoTag} ${sTag}${escHtml(it.no || '本题')}${it.topic ? '·' + escHtml(it.topic) : ''}：${escHtml(it.checkpoint || '')}${snapHint}</button>`;
+    }).join('');
+    const disAttr = cwRemoteBusy ? ' disabled' : '';
+    const briefBtnHtml = (Number(cw.total_count) > 0 && cw.study_brief)
+      ? `<button type="button" class="mob-cw-btn"${disAttr} onclick="copyMobCwBrief()">📋 复制伴写战报</button>`
+      : '';
+    box.innerHTML = `<div class="mob-cw-hd">
+      <span>👀 远程伴写控制台 · ${cw.enabled ? '守护中' : '待命中'}（第${Number(cw.page_epoch) || 1}页${focusMinM > 0 ? ` · ⏱ 专注 ${focusMinM}m` : ''}${mastN > 0 ? ` · 👑 吃透 ${mastN}` : ''}）</span>
+      ${recLine}
+    </div>
+    <div class="mob-cw-acts">
+      <button type="button" class="mob-cw-btn${cw.enabled ? ' on' : ''}"${disAttr} onclick="remoteCoWriteCtl('toggle', { enabled: ${!cw.enabled} })">${cw.enabled ? '⏸ 暂停伴写' : '▶ 开启伴写'}</button>
+      <button type="button" class="mob-cw-btn"${disAttr} onclick="remoteCoWriteCtl('scan_desk')">🔍 巡检桌面</button>
+      ${warnN > 0 ? `<button type="button" class="mob-cw-btn on"${disAttr} onclick="remoteCoWriteCtl('recheck_warns')">🔄 复查待查(${warnN})</button>` : ''}
+      ${warnN > 0 ? `<button type="button" class="mob-cw-btn"${disAttr} onclick="remoteCoWriteCtl('explain_top_warn')">🎓 拆解首道错因</button>` : ''}
+      ${((cw.digest && cw.digest.sprintable_count != null) ? (Number(cw.digest.sprintable_count) > 0) : (warnN > 0 || unrecN > 0)) ? `<button type="button" class="mob-cw-btn"${disAttr} onclick="remoteCoWriteCtl('sprint_warns')">🚀 投屏静默特训</button>` : ''}
+      ${briefBtnHtml}
+      <button type="button" class="mob-cw-btn"${disAttr} onclick="remoteCoWriteCtl('pace', { pause_mode: ${jsAttrStr(pmNxt)} })">${pmLbl}</button>
+      <button type="button" class="mob-cw-btn"${disAttr} onclick="remoteCoWriteCtl('new_page')">📄 换新页</button>
+    </div>
+    ${chipsHtml ? `<div class="mob-cw-chips">${chipsHtml}</div>` : ''}`;
+  }
+
+  window.remoteCoWriteCtl = async (subAct, extra = {}) => {
+    if (cwRemoteBusy) {
+      toast('上一条伴写指令正在执行，请稍候…');
+      return false;
+    }
+    cwRemoteBusy = true;
+    renderMobCowritePanel(lastCowriteBrief);
+    const toastActMap = {
+      scan_desk: '🔍 正在让大屏静默扫描桌面试卷…',
+      recheck_warns: '🔄 正在让大屏并行复查待自查错题…',
+      explain_one: '🎓 正在家里大屏静默展开本题错因拆解…',
+      explain_top_warn: '🎓 正在家里大屏静默展开首道待查题拆解…',
+      variant_one: '🎯 正在家里大屏静默投送本题同类变式…',
+      sprint_warns: '🚀 正在为大屏组卷初三伴写静默连闯（零语音）…',
+      resolve_one: '正在同步订正状态…',
+      star_one: '正在更新重点题标记…',
+    };
+    toast(toastActMap[subAct] || '正在同步指令到大屏伴写…');
+    try {
+      const tout = (subAct === 'scan_desk' || subAct === 'recheck_warns' || subAct === 'recheck_one' || subAct === 'variant_one' || subAct === 'sprint_warns') ? 35000 : 12000;
+      const { r, j } = await postMobileJson(Object.assign({ action: 'cowrite_remote_ctl', sub_action: subAct }, extra || {}), tout);
+      if (r.ok && j && j.ok) {
+        if (j.cowrite) {
+          lastCowriteBrief = j.cowrite;
+          renderMobCowritePanel(j.cowrite);
+        }
+        toast(j.message || '伴写指令已生效');
+        if (j.pending) {
+          pendingCowriteSeq = (j.prev_cowrite_seq != null) ? Number(j.prev_cowrite_seq) : lastCowriteSeqSeen;
+          setTimeout(pollMobileState, 2500);
+          setTimeout(pollMobileState, 5500);
+          setTimeout(pollMobileState, 9500);
+        } else {
+          pollMobileState();
+        }
+        return true;
+      } else {
+        toast((j && j.error) || '伴写指令未成功');
+        return false;
+      }
+    } catch (e) {
+      toast('连接大屏超时，请检查 VPN 连接');
+      return false;
+    } finally {
+      cwRemoteBusy = false;
+      renderMobCowritePanel(lastCowriteBrief);
+    }
+  };
+
+  function syncMobCwModalVarBtns(it) {
+    const canVar = !!(it && (it.status === 'warn' || it.corrected_pass || it.starred));
+    if ($('btnMobCwVariantOne')) $('btnMobCwVariantOne').style.display = canVar ? '' : 'none';
+    if ($('btnMobCwSoloVar')) $('btnMobCwSoloVar').style.display = canVar ? '' : 'none';
+  }
+
+  window.openMobCoWriteItem = async (id) => {
+    if (!id) return;
+    toast('正在加载该题高清裁剪与提示…');
+    try {
+      const { r, j } = await postMobileJson({ action: 'cowrite_snap', id }, 12000);
+      if (!r.ok || !j || !j.ok || !j.item) {
+        toast((j && j.error) || '该题暂无原图裁剪可看');
+        return;
+      }
+      const it = j.item;
+      mobCwModalItem = it;
+      if ($('mobCwModalTitle')) $('mobCwModalTitle').textContent = `${it.no || '本题'} · ${it.topic || '静默伴写详情'}${it.variant_passed ? ' · 👑变式已通关' : (it.blackboard_solved ? ' · 🏆黑板已通关' : '')}${(it.mistake_graduated || j.mistake_graduated) ? ' · 🏅已销号' : ''}`;
+      const imgEl = $('mobCwModalImg');
+      if (imgEl) {
+        imgEl.src = j.snap_b64 || '';
+        if (imgEl.parentElement) imgEl.parentElement.style.display = j.snap_b64 ? '' : 'none';
+      }
+      if ($('btnMobCwRecheckOne')) $('btnMobCwRecheckOne').style.display = (it.status === 'warn' && !it.resolved) ? '' : 'none';
+      if ($('btnMobCwResolveOne')) $('btnMobCwResolveOne').style.display = (it.status === 'warn' && !it.resolved) ? '' : 'none';
+      if ($('btnMobCwUnresolveOne')) {
+        $('btnMobCwUnresolveOne').style.display = (it.status === 'warn' && it.resolved && !it.blackboard_solved && !it.variant_passed) ? '' : 'none';
+      }
+      if ($('btnMobCwStarOne')) {
+        $('btnMobCwStarOne').textContent = it.starred ? '⭐ 已标重点' : '☆ 标重点';
+        $('btnMobCwStarOne').classList.toggle('on', !!it.starred);
+      }
+      syncMobCwModalVarBtns(it);
+      const lines = [];
+      const isRetro = !!(it.corrected_pass || (it.status === 'warn' && it.resolved));
+      const useRetroFields = !!(it.status !== 'warn' && it.warn_checkpoint);
+      const dispSw = useRetroFields ? (it.warn_step_where || it.step_where) : it.step_where;
+      const dispCp = useRetroFields ? (it.warn_checkpoint || it.checkpoint) : it.checkpoint;
+      const dispDh = useRetroFields ? (it.warn_deep_hint || it.deep_hint) : it.deep_hint;
+      const dispFt = useRetroFields ? (it.warn_formula_tip || it.formula_tip) : it.formula_tip;
+      const headLbl = isRetro ? '🎉 <b>已订正复盘</b>' : `${it.status === 'warn' ? '⚠️' : '✅'} <b>定位/方向</b>`;
+      lines.push(`<div>${headLbl}：${dispSw ? '【' + escHtml(dispSw) + '】' : ''}${escHtml(dispCp || '')}</div>`);
+      if (dispDh) lines.push(`<div>💡 <b>进阶追问</b>：${escHtml(dispDh)}</div>`);
+      if (dispFt) lines.push(`<div>📘 <b>公式定理</b>：${escHtml(dispFt)}</div>`);
+      if ($('mobCwModalHint')) $('mobCwModalHint').innerHTML = lines.join('');
+      if ($('mobCwSnapModal')) $('mobCwSnapModal').classList.add('show');
+    } catch (e) {
+      toast('加载原题图失败，请重试');
+    }
+  };
+
+  window.closeMobCwSnapModal = () => {
+    mobCwModalItem = null;
+    if ($('mobCwSnapModal')) $('mobCwSnapModal').classList.remove('show');
+    if ($('mobCwModalImg')) $('mobCwModalImg').removeAttribute('src');
+  };
+
+  window.recheckMobCwModalItem = async () => {
+    if (!mobCwModalItem || !mobCwModalItem.id) return;
+    if (cwRemoteBusy) { toast('上一条伴写指令正在执行，请稍候…'); return; }
+    const id = mobCwModalItem.id;
+    closeMobCwSnapModal();
+    await window.remoteCoWriteCtl('recheck_one', { id });
+  };
+
+  window.resolveMobCwModalItem = async () => {
+    if (!mobCwModalItem || !mobCwModalItem.id) return;
+    if (cwRemoteBusy) { toast('上一条伴写指令正在执行，请稍候…'); return; }
+    const id = mobCwModalItem.id;
+    closeMobCwSnapModal();
+    await window.remoteCoWriteCtl('resolve_one', { id, resolved: true });
+  };
+
+  window.unresolveMobCwModalItem = async () => {
+    if (!mobCwModalItem || !mobCwModalItem.id) return;
+    if (cwRemoteBusy) { toast('上一条伴写指令正在执行，请稍候…'); return; }
+    const id = mobCwModalItem.id;
+    closeMobCwSnapModal();
+    await window.remoteCoWriteCtl('resolve_one', { id, resolved: false });
+  };
+
+  window.starMobCwModalItem = async () => {
+    if (!mobCwModalItem || !mobCwModalItem.id) return;
+    if (cwRemoteBusy) { toast('上一条伴写指令正在执行，请稍候…'); return; }
+    const it = mobCwModalItem;
+    const prevS = !!it.starred;
+    const wantS = !prevS;
+    const setStarUi = s => {
+      it.starred = s;
+      if ($('btnMobCwStarOne')) {
+        $('btnMobCwStarOne').textContent = s ? '⭐ 已标重点' : '☆ 标重点';
+        $('btnMobCwStarOne').classList.toggle('on', s);
+      }
+      syncMobCwModalVarBtns(it);
+    };
+    setStarUi(wantS);
+    const ok = await window.remoteCoWriteCtl('star_one', { id: it.id, star: wantS });
+    if (!ok && mobCwModalItem === it) setStarUi(prevS);
+  };
+
+  window.explainMobCwModalItem = async () => {
+    if (!mobCwModalItem || !mobCwModalItem.id) return;
+    if (cwRemoteBusy) { toast('上一条伴写指令正在执行，请稍候…'); return; }
+    const id = mobCwModalItem.id;
+    closeMobCwSnapModal();
+    await window.remoteCoWriteCtl('explain_one', { id });
+  };
+
+  window.variantMobCwModalItem = async () => {
+    if (!mobCwModalItem || !mobCwModalItem.id) return;
+    if (cwRemoteBusy) { toast('上一条伴写指令正在执行，请稍候…'); return; }
+    const id = mobCwModalItem.id;
+    closeMobCwSnapModal();
+    await window.remoteCoWriteCtl('variant_one', { id });
+  };
+
+  window.soloVariantMobCwModalItem = async () => {
+    if (!mobCwModalItem || !mobCwModalItem.id) return;
+    if (cwRemoteBusy) { toast('上一条伴写指令正在执行，请稍候…'); return; }
+    const id = mobCwModalItem.id;
+    closeMobCwSnapModal();
+    await window.remoteCoWriteCtl('variant_one', { id, solo_challenge: true });
+  };
+
+  window.copyMobCwBrief = async () => {
+    const txt = String((lastCowriteBrief && lastCowriteBrief.study_brief) || '').trim();
+    if (!txt) {
+      toast('当前还没有可复制的伴写战报');
+      return;
+    }
+    let copied = false;
+    try {
+      if (navigator.clipboard && typeof navigator.clipboard.writeText === 'function') {
+        await navigator.clipboard.writeText(txt);
+        copied = true;
+      }
+    } catch (e) {}
+    if (!copied) {
+      try {
+        const ta = document.createElement('textarea');
+        ta.value = txt;
+        ta.setAttribute('readonly', '');
+        ta.style.position = 'fixed';
+        ta.style.opacity = '0';
+        document.body.appendChild(ta);
+        ta.select();
+        copied = !!(document.execCommand && document.execCommand('copy'));
+        ta.remove();
+      } catch (e) {}
+    }
+    toast(copied ? '📋 已复制今晚伴写战报，可直接粘贴发微信！' : '战报已生成，请使用系统复制功能');
+  };
+
+  window.nudgeMobCwModalItem = async () => {
+    if (!mobCwModalItem) return;
+    const it = mobCwModalItem;
+    const noLbl = it.no || '这道题';
+    let msg = `${it.no || '有一道题'}写得很专注！记得回头自查一下${it.step_where || it.topic || '关键条件'}哦！`;
+    if (it.variant_passed) {
+      msg = `${noLbl}同类变式也已经通关啦，掌握得很扎实，继续保持！`;
+    } else if (it.corrected_pass || (it.status === 'warn' && it.resolved)) {
+      msg = `${noLbl}刚才已经自己订正过关了，思路很清晰，真棒！`;
+    } else if (it.status !== 'warn') {
+      msg = `${noLbl}书写步骤很清晰、做得很扎实，继续稳步推进！`;
+    }
+    closeMobCwSnapModal();
+    await window.sendParentNudge(msg);
+  };
+
+  /* ---------- A4 Mistake Clean Worksheet Generator (1240x1754 Crisp Print Canvas) ---------- */
+  function renderPrintMistakeChecklist() {
+    const box = $('printMistakeList');
+    if (!box) return;
+    const validIds = new Set(mobileMistakes.map(m => m.id));
+    for (const oldId of [...printSelIds]) {
+      if (!validIds.has(oldId)) printSelIds.delete(oldId);
+    }
+    if (!mobileMistakes.length) {
+      printSelectionInited = false;
+      box.innerHTML = '<div style="font-size:13px;color:var(--muted);padding:6px 2px;">当前错题本暂无历史错题，点击下方生成将自动选用大屏当前题或精选易错母题排版示范清卷。</div>';
+      return;
+    }
+    if (!printSelectionInited) {
+      printSelectionInited = true;
+      mobileMistakes.filter(m => !m.graduated).slice(0, 4).forEach(m => printSelIds.add(m.id));
+      if (!printSelIds.size) mobileMistakes.slice(0, 3).forEach(m => printSelIds.add(m.id));
+    }
+    box.innerHTML = mobileMistakes.map(m => {
+      const ck = printSelIds.has(m.id) ? 'checked' : '';
+      const badge = m.graduated ? '已销号' : (m.error_tag || '待复练');
+      return `<label class="print-item"><input type="checkbox" ${ck} onchange="togglePrintMistake(${jsAttrStr(m.id)}, this.checked)"><span>${escHtml(m.title)}（${escHtml(badge)}）</span></label>`;
+    }).join('');
+  }
+
+  window.openPrintSheetModal = (keepCowrite = false) => {
+    if (!keepCowrite) printFromCowrite = false;
+    document.body.classList.remove('print-sheet-ready');
+    if (!printSelIds.size) printSelectionInited = false;
+    renderPrintMistakeChecklist();
+    $('printModal').classList.add('show');
+  };
+
+  window.openCwPrintSheet = async () => {
+    printFromCowrite = true;
+    const cwUnrecNow = (lastCowriteBrief && lastCowriteBrief.digest && Number(lastCowriteBrief.digest.unrecorded_warn_count)) || 0;
+    let freshIds = [];
+    if (cwUnrecNow > 0) {
+      toast('📌 正在自动收录伴写易错题并准备 A4 清卷…');
+      try {
+        const { r, j } = await postMobileJson({ action: 'cowrite_enroll_warns' }, 10000);
+        if (r.ok && j && j.ok) {
+          if (Array.isArray(j.mistakes)) mobileMistakes = j.mistakes;
+          if (Array.isArray(j.enrolled_ids)) freshIds = j.enrolled_ids;
+          if (j.cowrite) {
+            lastCowriteBrief = j.cowrite;
+            renderMobCowritePanel(j.cowrite);
+          }
+        }
+      } catch (e) {}
+    }
+    const cwList = mobileMistakes.filter(m => m && !m.graduated && String(m.error_tag || '').startsWith('伴写·'));
+    const keepIds = [...new Set([...freshIds, ...cwList.map(m => m.id)].filter(Boolean))].slice(0, 6);
+    if (keepIds.length) {
+      printSelIds.clear();
+      keepIds.forEach(id => { if (id) printSelIds.add(id); });
+      printSelectionInited = true;
+    }
+    openPrintSheetModal(true);
+  };
+
+  let printReqSeq = 0, printBlobUrl = '', printAbortCtl = null;
+  function _revokePrintBlob() {
+    if (printBlobUrl) {
+      try { URL.revokeObjectURL(printBlobUrl); } catch (e) {}
+      printBlobUrl = '';
+    }
+  }
+  function _cancelPrintReq() {
+    printReqSeq++;
+    if (printAbortCtl) {
+      try { printAbortCtl.abort(); } catch (e) {}
+      printAbortCtl = null;
+    }
+    printBusy = false;
+    const btn = $('btnGenPrintSheet');
+    if (btn) btn.disabled = false;
+  }
+
+  window.closePrintSheetModal = () => {
+    _cancelPrintReq();
+    printFromCowrite = false;
+    document.body.classList.remove('print-sheet-ready');
+    $('printModal').classList.remove('show');
+    if ($('printPreviewWrap')) $('printPreviewWrap').classList.remove('show');
+    if ($('printPreviewImg')) $('printPreviewImg').removeAttribute('src');
+    if ($('btnDownloadSheet')) $('btnDownloadSheet').href = '#';
+    _revokePrintBlob();
+  };
+
+  window.setPrintSheetMode = (m) => {
+    const nextM = m === 'original' ? 'original' : 'desensitized';
+    if (nextM !== printSheetMode) {
+      _cancelPrintReq();
+      if ($('printPreviewWrap')) $('printPreviewWrap').classList.remove('show');
+      document.body.classList.remove('print-sheet-ready');
+      if ($('printPreviewImg')) $('printPreviewImg').removeAttribute('src');
+      if ($('btnDownloadSheet')) $('btnDownloadSheet').href = '#';
+      _revokePrintBlob();
+    }
+    printSheetMode = nextM;
+    $('btnPmDesens').classList.toggle('on', printSheetMode === 'desensitized');
+    $('btnPmOrig').classList.toggle('on', printSheetMode === 'original');
+  };
+
+  window.togglePrintMistake = (id, checked) => {
+    if (checked) {
+      if (printSelIds.size >= 6) {
+        toast('单张 A4 清卷最多勾选 6 道题，留足手写演算空白哦');
+        renderPrintMistakeChecklist();
+        return;
+      }
+      printSelIds.add(id);
+    } else {
+      printSelIds.delete(id);
+    }
+    _cancelPrintReq();
+    if ($('printPreviewWrap')) $('printPreviewWrap').classList.remove('show');
+    if ($('printPreviewImg')) $('printPreviewImg').removeAttribute('src');
+    if ($('btnDownloadSheet')) $('btnDownloadSheet').href = '#';
+    _revokePrintBlob();
+    document.body.classList.remove('print-sheet-ready');
+  };
+
+  function wrapCanvasLines(ctx, text, maxW) {
+    const out = [];
+    const paras = String(text || '').split(/\n+/);
+    for (const p of paras) {
+      let line = '';
+      for (const ch of p) {
+        const test = line + ch;
+        if (ctx.measureText(test).width > maxW && line) {
+          out.push(line);
+          line = ch;
+        } else {
+          line = test;
+        }
+      }
+      if (line) out.push(line);
+    }
+    return out.length ? out : [''];
+  }
+
+  window.generateA4PrintSheet = async () => {
+    if (printBusy) return;
+    if (!printFromCowrite && mobileMistakes.length > 0 && printSelIds.size === 0) {
+      toast('请先在上方列表勾选至少 1 道要排版打印的错题哦！');
+      return;
+    }
+    const mySeq = ++printReqSeq;
+    const ctl = new AbortController();
+    printAbortCtl = ctl;
+    printBusy = true;
+    const btn = $('btnGenPrintSheet');
+    if (btn) btn.disabled = true;
+    toast(printSheetMode === 'desensitized' ? '✨ AI 正在将错题脱敏换数并排版 A4 清卷…' : '📄 正在擦除痕迹排版原错题 A4 清卷…');
+    try {
+      const pedagogy = $('selPedagogy').value || 'auto';
+      const { r, j } = await postMobileJson({
+        action: 'prepare_print_sheet',
+        ids: [...printSelIds],
+        sheet_mode: printSheetMode,
+        pedagogy,
+        from_cowrite: !!printFromCowrite,
+      }, 34000, { signal: ctl.signal });
+      if (mySeq !== printReqSeq || !$('printModal').classList.contains('show')) return;
+      if (!r.ok || !j || !j.ok || !Array.isArray(j.items) || !j.items.length) {
+        toast((j && j.error) || '生成打印清卷失败');
+        return;
+      }
+      const W = 1240, H = 1754;
+      const c = document.createElement('canvas');
+      c.width = W; c.height = H;
+      const ctx = c.getContext('2d');
+      ctx.fillStyle = '#ffffff';
+      ctx.fillRect(0, 0, W, H);
+
+      // Header block
+      ctx.fillStyle = '#111827';
+      ctx.font = '700 38px "PingFang SC", "Noto Sans CJK SC", sans-serif';
+      ctx.textAlign = 'center';
+      ctx.fillText(j.title || 'AI 错题重练清卷', W / 2, 74);
+
+      const d = new Date();
+      const dateStr = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+      ctx.font = '400 22px "PingFang SC", "Noto Sans CJK SC", sans-serif';
+      ctx.fillStyle = '#4b5563';
+      ctx.fillText(`日期：${dateStr}      姓名：____________      独立用时：______ 分钟      自评：☆☆☆☆☆`, W / 2, 118);
+
+      ctx.strokeStyle = '#1f2937';
+      ctx.lineWidth = 3;
+      ctx.beginPath();
+      ctx.moveTo(72, 140);
+      ctx.lineTo(W - 72, 140);
+      ctx.stroke();
+
+      // Questions & generous scratch boxes
+      const items = j.items.slice(0, 6);
+      const topY = 166, botY = 1585;
+      const slotH = Math.floor((botY - topY) / items.length);
+      ctx.textAlign = 'left';
+
+      const denseSheet = items.length >= 5;
+      const qFontPx = denseSheet ? 22 : 25;
+      const qLineH = denseSheet ? 30 : 36;
+      const maxQLines = items.length >= 6 ? 3 : 4;
+      items.forEach((it, idx) => {
+        const y0 = topY + idx * slotH;
+        ctx.fillStyle = '#0b7470';
+        ctx.font = `700 ${denseSheet ? 22 : 24}px "PingFang SC", "Noto Sans CJK SC", sans-serif`;
+        ctx.fillText(`【第 ${idx + 1} 题 · ${it.tag || '靶向巩固'}】`, 72, y0 + 26);
+
+        ctx.fillStyle = '#111827';
+        let usePx = qFontPx, useLineH = qLineH, useMax = maxQLines;
+        ctx.font = `700 ${usePx}px "PingFang SC", "Noto Sans CJK SC", sans-serif`;
+        let allQLines = wrapCanvasLines(ctx, it.question || '', W - 156);
+        if (allQLines.length > useMax) {
+          usePx = denseSheet ? 19 : 21;
+          useLineH = denseSheet ? 26 : 30;
+          useMax = maxQLines + 1;
+          ctx.font = `700 ${usePx}px "PingFang SC", "Noto Sans CJK SC", sans-serif`;
+          allQLines = wrapCanvasLines(ctx, it.question || '', W - 156);
+        }
+        const qLines = allQLines.slice(0, useMax);
+        if (allQLines.length > useMax && qLines.length) {
+          qLines[qLines.length - 1] = qLines[qLines.length - 1].slice(0, -1) + '…';
+        }
+        const qStartY = denseSheet ? 54 : 64;
+        qLines.forEach((ln, li) => {
+          ctx.fillText(ln, 78, y0 + qStartY + li * useLineH);
+        });
+
+        const boxTop = y0 + qStartY + qLines.length * useLineH + 6;
+        const maxBoxBot = y0 + slotH - (denseSheet ? 18 : 14);
+        const boxH = Math.max(52, maxBoxBot - boxTop);
+        ctx.strokeStyle = '#cbd5e1';
+        ctx.lineWidth = 2;
+        ctx.setLineDash([8, 6]);
+        ctx.strokeRect(78, boxTop, W - 156, boxH);
+        ctx.setLineDash([]);
+        ctx.fillStyle = '#94a3b8';
+        ctx.font = '400 19px "PingFang SC", "Noto Sans CJK SC", sans-serif';
+        const isWrSheetIt = !!it.is_writing;
+        const isHumSheetIt = !isWrSheetIt && (['chinese', 'english', 'history', 'civics'].includes(it.subject || '') || (['biology', 'geography'].includes(it.subject || '') && !/℃|摄氏度|海拔.*米|比例尺|放大.*倍/.test(it.question || '')));
+        ctx.fillText(isWrSheetIt ? '审题提纲与升格佳句练笔区：' : (isHumSheetIt ? '思路梳理与规范作答区：' : '列式与画图演算区：'), 94, boxTop + 27);
+        if (!isWrSheetIt) {
+          ctx.fillText('答：____________________________', W - 430, boxH >= 64 ? (boxTop + boxH - 15) : (boxTop + 27));
+        }
+      });
+
+      // Bottom fold-line verification strip
+      ctx.strokeStyle = '#64748b';
+      ctx.lineWidth = 2;
+      ctx.setLineDash([10, 8]);
+      ctx.beginPath();
+      ctx.moveTo(72, 1612);
+      ctx.lineTo(W - 72, 1612);
+      ctx.stroke();
+      ctx.setLineDash([]);
+
+      ctx.fillStyle = '#64748b';
+      ctx.font = '700 19px "PingFang SC", "Noto Sans CJK SC", sans-serif';
+      ctx.textAlign = 'center';
+      ctx.fillText('✂ ────── 家长核对折叠线（做题前请先沿虚线向背面折起） ──────', W / 2, 1642);
+
+      const keyStr = items.map((it, idx) => `第${idx + 1}题：${it.ans_check || '见原题验算'}`).join('    |    ');
+      ctx.font = '400 18px "PingFang SC", "Noto Sans CJK SC", sans-serif';
+      const keyLines = wrapCanvasLines(ctx, keyStr, W - 160).slice(0, 2);
+      keyLines.forEach((kl, ki) => ctx.fillText(kl, W / 2, 1676 + ki * 26));
+
+      let jpgUrl = '';
+      if (typeof c.toBlob === 'function') {
+        const blob = await new Promise(resolve => c.toBlob(resolve, 'image/jpeg', 0.90));
+        if (blob) {
+          jpgUrl = URL.createObjectURL(blob);
+          _revokePrintBlob();
+          printBlobUrl = jpgUrl;
+        }
+      }
+      if (!jpgUrl) jpgUrl = c.toDataURL('image/jpeg', 0.90);
+      releaseCanvas(c);
+      if (mySeq !== printReqSeq || !$('printModal').classList.contains('show')) {
+        _revokePrintBlob();
+        return;
+      }
+      $('printPreviewImg').src = jpgUrl;
+      $('btnDownloadSheet').href = jpgUrl;
+      $('btnDownloadSheet').download = `${printSheetMode === 'original' ? 'AI原错题重练清卷' : 'AI脱敏换数清卷'}_${dateStr.replace(/-/g, '')}.jpg`;
+      $('printPreviewWrap').classList.add('show');
+      document.body.classList.add('print-sheet-ready');
+      toast('✅ A4 清卷已生成！长按预览图即可转发微信打印或保存到相册');
+    } catch (e) {
+      if (mySeq !== printReqSeq || ctl.signal.aborted) return;
+      toast('排版生成超时，请检查连接后重试');
+    } finally {
+      if (printAbortCtl === ctl) printAbortCtl = null;
+      if (mySeq === printReqSeq) {
+        printBusy = false;
+        if (btn) btn.disabled = false;
+      }
+    }
+  };
+
+  function syncMobPollTimer() {
+    const shouldRun = embedActive && !document.hidden;
+    if (!shouldRun && mobPollTimer) {
+      clearInterval(mobPollTimer);
+      mobPollTimer = null;
+    } else if (shouldRun && !mobPollTimer) {
+      mobPollTimer = setInterval(pollMobileState, 4500);
+    }
+  }
+  window.tsEmbedSetActive = (active) => {
+    embedActive = !!active;
+    if (!embedActive) {
+      if (typeof abortStageSilent === 'function') abortStageSilent();
+      _cancelPrintReq();
+    }
+    syncMobPollTimer();
+    if (embedActive && !document.hidden) pollMobileState();
+  };
+  window.toggleMobMore = () => {
+    const box = $('mobMoreTools'), btn = $('btnMobMore');
+    if (!box) return;
+    const closed = box.classList.toggle('collapsed');
+    if (btn) btn.textContent = closed ? '更多选项与草稿精批 ▾' : '收起次要选项 ▴';
+  };
+  document.addEventListener('visibilitychange', () => {
+    syncMobPollTimer();
+    if (embedActive && !document.hidden) pollMobileState();
+  });
+
+  /* ---------- 2026-11-24 手机端自助听写投送与拍照秒批 ---------- */
+  let lastDictBrief = null;
+  let mobDictBusy = false;
+  let mobDictUserToggled = false;
+
+  window.toggleMobDictCard = (forceOpen) => {
+    const body = $('mobDictBody'), btn = $('btnToggleMobDict');
+    if (!body) return;
+    mobDictUserToggled = true;
+    const wantOpen = typeof forceOpen === 'boolean' ? forceOpen : body.classList.contains('collapsed');
+    body.classList.toggle('collapsed', !wantOpen);
+    if (btn) btn.textContent = wantOpen ? '收起 ▴' : '展开 ▾';
+  };
+
+  function exportMobDictJpegB64() {
+    if (!baseCanvas) return '';
+    if (userSelectedCrop && (crop.w < 0.92 || crop.h < 0.88)) {
+      return exportCroppedJpegB64(420000);
+    }
+    return exportFullPageJpegB64(720000);
+  }
+
+  function renderMobDictPanel(dc) {
+    const box = $('mobDictStatusBox');
+    if (!box) return;
+    if (!dc || !Number(dc.total_count)) {
+      box.style.display = 'none';
+      return;
+    }
+    if (!mobDictUserToggled && $('mobDictBody') && $('mobDictBody').classList.contains('collapsed')) {
+      $('mobDictBody').classList.remove('collapsed');
+      if ($('btnToggleMobDict')) $('btnToggleMobDict').textContent = '收起 ▴';
+    }
+    box.style.display = 'flex';
+    const dis = mobDictBusy ? ' disabled' : '';
+    if (dc.phase === 'graded') {
+      const wrArr = Array.isArray(dc.wrong_items) ? dc.wrong_items : [];
+      const wrCnt = (Number(dc.wrong_count) || 0) + (Number(dc.missing_count) || 0);
+      box.innerHTML = `
+        <div style="font-weight:700;color:var(--accent);">📝 听写批改完成：正确率 ${dc.accuracy_pct || 0}%（全对 ${dc.ok_count || 0}/${dc.total_count}）</div>
+        <div>${escHtml(dc.summary || '')}</div>
+        ${wrArr.map(w => `<div class="mob-dc-wrong">#${w.idx} 标准：${escHtml(w.word)}${w.written ? ` · 手写：「${escHtml(w.written)}」` : ' · 漏写'}${w.note ? `（${escHtml(w.note)}）` : ''}</div>`).join('')}
+        <div class="mob-dc-grid">
+          ${wrCnt > 0 ? `<button type="button" class="mob-dc-btn primary"${dis} onclick="mobDictCtl('retry_wrong')">🔁 大屏重默错词(${wrCnt})</button>` : ''}
+          ${wrCnt > 0 ? `<button type="button" class="mob-dc-btn"${dis} onclick="mobDictCtl('enroll_mistakes')">📌 错词入错题本</button>` : ''}
+        </div>`;
+      return;
+    }
+    const prevWords = Array.isArray(dc.preview_words) && dc.preview_words.length ? `词表：${dc.preview_words.slice(0, 6).join('、')}${dc.total_count > 6 ? '…' : ''}` : '';
+    box.innerHTML = `
+      <div style="font-weight:700;">🎧 大屏当前词表：《${escHtml(dc.title || '自助听写')}》共 ${dc.total_count} 词（进度 ${(Number(dc.current_idx) || 0) + 1}/${dc.total_count}）</div>
+      ${prevWords ? `<div style="color:var(--muted);font-size:13px;">${escHtml(prevWords)}</div>` : ''}
+      <div class="mob-dc-grid">
+        <button type="button" class="mob-dc-btn"${dis} onclick="mobDictCtl('open_ui')">🖥 大屏切到听写台</button>
+        <button type="button" class="mob-dc-btn"${dis} onclick="mobDictCtl('clear')">🗑 清空大屏词表</button>
+      </div>`;
+  }
+
+  window.mobStartDictText = async () => {
+    const txt = ($('inpMobDictWords') ? $('inpMobDictWords').value : '').trim();
+    if (!txt) {
+      toast('请先在输入框粘贴或输入要听写的字词');
+      return;
+    }
+    if (mobDictBusy) return;
+    mobDictBusy = true;
+    renderMobDictPanel(lastDictBrief);
+    try {
+      const iv = Number(($('selDictInterval') && $('selDictInterval').value) || 8);
+      const em = ($('selDictEnMode') && $('selDictEnMode').value) || 'both';
+      toast('🎧 正在投送听写词表到家里大屏…');
+      const { r, j } = await postMobileJson({ action: 'dictation_start', words: txt, interval_sec: iv, en_mode: em }, 15000);
+      if (r.ok && j && j.ok) {
+        if ($('inpMobDictWords')) $('inpMobDictWords').value = '';
+        if (j.dictation) { lastDictBrief = j.dictation; renderMobDictPanel(j.dictation); }
+        toast(j.message || '已投送到家里大屏自助听写台！');
+        pollMobileState();
+      } else {
+        toast((j && j.error) || '词表投送失败');
+      }
+    } catch (e) {
+      toast('连接大屏超时，请确认 VPN 已连接');
+    } finally {
+      mobDictBusy = false;
+      renderMobDictPanel(lastDictBrief);
+    }
+  };
+
+  window.mobStartDictImage = async () => {
+    if (!baseCanvas) {
+      toast('请先在最上方「① 拍照或选作业图」拍一张课本词语表，再点此提取！');
+      return;
+    }
+    if (mobDictBusy) return;
+    mobDictBusy = true;
+    renderMobDictPanel(lastDictBrief);
+    try {
+      const iv = Number(($('selDictInterval') && $('selDictInterval').value) || 8);
+      const em = ($('selDictEnMode') && $('selDictEnMode').value) || 'both';
+      const b64 = exportMobDictJpegB64();
+      toast('📖 正在从课本照片提取听写词表并投送到大屏…');
+      const { r, j } = await postMobileJson({ action: 'dictation_start', page_b64: b64, interval_sec: iv, en_mode: em }, 35000);
+      if (r.ok && j && j.ok) {
+        if (j.dictation) { lastDictBrief = j.dictation; renderMobDictPanel(j.dictation); }
+        toast(j.message || '已提取词表并投送到大屏！');
+        pollMobileState();
+        if (j.pending) { setTimeout(pollMobileState, 3000); setTimeout(pollMobileState, 7000); }
+      } else {
+        toast((j && j.error) || '未能从图片提取词表');
+      }
+    } catch (e) {
+      toast('提词超时，请重试');
+    } finally {
+      mobDictBusy = false;
+      renderMobDictPanel(lastDictBrief);
+    }
+  };
+
+  window.mobGradeDictImage = async () => {
+    if (!lastDictBrief || !Number(lastDictBrief.total_count)) {
+      toast('大屏当前还没有待批改的听写词表，请先投送词表完成听写哦');
+      return;
+    }
+    if (!baseCanvas) {
+      toast('请先在最上方「① 拍照或选作业图」拍一张孩子写好的听写本，再点此秒批！');
+      return;
+    }
+    if (mobDictBusy) return;
+    mobDictBusy = true;
+    renderMobDictPanel(lastDictBrief);
+    try {
+      const b64 = exportMobDictJpegB64();
+      toast('📸 正在上传听写本照片并逐字核对笔画与拼写…');
+      const { r, j } = await postMobileJson({ action: 'dictation_grade', page_b64: b64 }, 38000);
+      if (r.ok && j && j.ok) {
+        if (j.dictation) { lastDictBrief = j.dictation; renderMobDictPanel(j.dictation); }
+        toast(j.message || '听写本批改完成！');
+        pollMobileState();
+        if (j.pending) { setTimeout(pollMobileState, 3500); setTimeout(pollMobileState, 7500); }
+      } else {
+        toast((j && j.error) || '听写本批改未成功');
+      }
+    } catch (e) {
+      toast('批改请求超时，请重试');
+    } finally {
+      mobDictBusy = false;
+      renderMobDictPanel(lastDictBrief);
+    }
+  };
+
+  window.mobDictCtl = async (subAct) => {
+    if (mobDictBusy) return;
+    mobDictBusy = true;
+    renderMobDictPanel(lastDictBrief);
+    try {
+      const { r, j } = await postMobileJson({ action: 'dictation_ctl', sub_action: subAct }, 12000);
+      if (r.ok && j && j.ok) {
+        if (j.dictation) { lastDictBrief = j.dictation; renderMobDictPanel(j.dictation); }
+        toast(j.message || '操作已生效');
+        pollMobileState();
+      } else {
+        toast((j && j.error) || '操作未成功');
+      }
+    } catch (e) {
+      toast('连接大屏超时');
+    } finally {
+      mobDictBusy = false;
+      renderMobDictPanel(lastDictBrief);
+    }
+  };
+
+  window.addEventListener('pagehide', (ev) => {
+    if (mobPollTimer) { clearInterval(mobPollTimer); mobPollTimer = null; }
+    if (typeof abortStageSilent === 'function') abortStageSilent();
+    _cancelPrintReq();
+    if (!ev || !ev.persisted) closePrintSheetModal();
+  });
+  window.addEventListener('pageshow', (ev) => {
+    if (ev && ev.persisted) {
+      syncMobPollTimer();
+      if (embedActive && !document.hidden) pollMobileState();
+    }
+  });
+
+  pollMobileState();
+  syncMobPollTimer();
+})();
+</script>
+</body>
+</html>

@@ -1,0 +1,1 @@
+SUBSYSTEM=="input", KERNEL=="event*", ATTRS{name}=="Himax Touchscreen", MODE="0660", GROUP="input", TAG+="uaccess"

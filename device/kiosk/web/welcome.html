@@ -1,0 +1,843 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
+<title>联想 View</title>
+<script>try{if(localStorage.getItem('ts.theme')==='light')document.documentElement.setAttribute('data-theme','light')}catch(e){}</script>
+<style>
+:root {
+  --bg: #0a101c; --card: #121a2b; --ctl: #1d2840; --ctl2: #24314d; --line: #232e45; --inset: #0d1524;
+  --t1: #f2f5fb; --t2: #b4bfd4; --t3: #8a96ad;
+  --sv: #5ab8ff; --sv-soft: #17243a;
+  --ok: #3ddc97; --ok-soft: #14291f; --ok-ink: #8ff0c4;
+  --warn: #f5c04a; --warn-soft: #2f2814; --warn-ink: #f5d27a;
+  --bad: #ff6b6b; --bad-soft: #33201f; --bad-ink: #ffb3b3;
+  --on-fill: #0a101c;
+}
+:root[data-theme="light"] {
+  --bg: #e3dbce; --card: #f6f2ea; --ctl: #e8e1d5; --ctl2: #dfd6c7; --line: #d6cdbf; --inset: #ebe4d8;
+  --t1: #18191b; --t2: #46484d; --t3: #5a5c61;
+  --sv: #0b7470; --sv-soft: #c7dfda;
+  --ok: #216e37; --ok-soft: #d2e6d6; --ok-ink: #216e37;
+  --warn: #926400; --warn-soft: #eed9b6; --warn-ink: #84510a;
+  --bad: #bf2a2a; --bad-soft: #efc9c9; --bad-ink: #a82626;
+  --on-fill: #faf8f4;
+}
+* { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
+html, body { width: 100%; height: 100%; overflow: hidden; background: var(--bg); }
+body {
+  color: var(--t1);
+  font-family: "Noto Sans CJK SC", "Noto Sans SC", "PingFang SC", -apple-system, "Microsoft YaHei", sans-serif;
+  font-size: 18px;
+  font-weight: 400;
+  -webkit-font-smoothing: antialiased;
+  user-select: none;
+  -webkit-user-select: none;
+}
+button { font: inherit; color: inherit; border: 0; background: none; cursor: pointer; touch-action: manipulation; }
+
+.app {
+  position: fixed;
+  inset: 0;
+  display: grid;
+  grid-template-rows: 1fr auto;
+  gap: 14px;
+  padding: 18px 22px 16px;
+}
+main {
+  display: grid;
+  grid-template-columns: 1fr 440px;
+  gap: 16px;
+  min-height: 0;
+}
+.card {
+  background: var(--card);
+  border: 1px solid var(--line);
+  border-radius: 28px;
+  padding: 26px 28px;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  min-height: 0;
+}
+
+.hero-top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+.brand-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  height: 42px;
+  padding: 0 16px;
+  border-radius: 999px;
+  background: var(--sv-soft);
+  color: var(--sv);
+  font-size: 17px;
+  font-weight: 700;
+}
+.net-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  height: 42px;
+  padding: 0 16px;
+  border-radius: 999px;
+  background: var(--ctl);
+  color: var(--t2);
+  font-size: 16px;
+  font-weight: 700;
+}
+.net-pill:active { background: var(--ctl2); }
+
+.clock-box { margin: auto 0; }
+.clock-t {
+  font-size: 132px;
+  line-height: 132px;
+  font-weight: 700;
+  letter-spacing: -4px;
+  font-variant-numeric: tabular-nums;
+}
+.clock-d {
+  margin-top: 12px;
+  font-size: 28px;
+  line-height: 36px;
+  font-weight: 700;
+  color: var(--t2);
+}
+
+.status {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  padding: 16px 20px;
+  border-radius: 20px;
+  background: var(--inset);
+  border: 1px solid var(--line);
+}
+.dot {
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  flex: none;
+  background: var(--ok);
+  animation: pulse 1.8s ease-out infinite;
+}
+.status.offline .dot { background: var(--warn); animation: none; }
+@keyframes pulse {
+  0% { opacity: 1; transform: scale(1); }
+  70% { opacity: 0.35; transform: scale(1.45); }
+  100% { opacity: 1; transform: scale(1); }
+}
+.status-body { flex: 1; min-width: 0; }
+.status-main { font-size: 21px; font-weight: 700; line-height: 28px; color: var(--t1); }
+.status-sub { margin-top: 4px; font-size: 16px; line-height: 22px; color: var(--t3); word-break: break-all; }
+.cta {
+  display: none;
+  flex: none;
+  height: 52px;
+  padding: 0 22px;
+  border-radius: 16px;
+  background: var(--sv);
+  color: var(--on-fill);
+  font-size: 18px;
+  font-weight: 700;
+}
+.status.offline .cta { display: inline-flex; align-items: center; justify-content: center; }
+
+.info-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 16px;
+}
+.info-head h2 { font-size: 24px; line-height: 32px; font-weight: 700; }
+.info-tag {
+  padding: 4px 12px;
+  border-radius: 999px;
+  background: var(--ok-soft);
+  color: var(--ok-ink);
+  font-size: 15px;
+  font-weight: 700;
+}
+.rows { display: grid; gap: 12px; flex: 1; align-content: start; }
+.irow {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14px;
+  padding: 16px 18px;
+  border-radius: 18px;
+  background: var(--inset);
+  border: 1px solid var(--line);
+}
+.irow-l { min-width: 0; flex: 1; }
+.irow-k { font-size: 15px; line-height: 20px; color: var(--t3); }
+.irow-v {
+  margin-top: 4px;
+  font-size: 19px;
+  line-height: 26px;
+  font-weight: 700;
+  color: var(--t1);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.irow-v.mono {
+  font-family: "Noto Sans Mono", "JetBrains Mono", monospace;
+  font-size: 16px;
+}
+.mini-btn {
+  flex: none;
+  height: 44px;
+  padding: 0 16px;
+  border-radius: 14px;
+  background: var(--ctl);
+  color: var(--t1);
+  font-size: 16px;
+  font-weight: 700;
+}
+.mini-btn:active { background: var(--ctl2); }
+
+footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 12px 18px;
+  border-radius: 20px;
+  background: var(--card);
+  border: 1px solid var(--line);
+  font-size: 16px;
+  color: var(--t3);
+}
+footer b { color: var(--t2); font-weight: 700; }
+
+/* ---- Wi-Fi Sheet ---- */
+.sheet {
+  position: fixed;
+  inset: 0;
+  z-index: 10;
+  display: none;
+  background: var(--bg);
+}
+.sheet.open { display: block; }
+.pane {
+  position: absolute;
+  inset: 0;
+  display: none;
+  flex-direction: column;
+  padding: 24px 32px;
+}
+.pane.on { display: flex; }
+.bar { display: flex; align-items: center; gap: 16px; margin-bottom: 18px; }
+.bar h3 { flex: 1; font-size: 28px; font-weight: 700; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.icon-btn {
+  width: 54px;
+  height: 54px;
+  border-radius: 16px;
+  border: 1px solid var(--line);
+  background: var(--card);
+  display: grid;
+  place-items: center;
+  flex: none;
+}
+.icon-btn:active, .net:active, .add:active { transform: scale(0.97); }
+.icon-btn.spin svg { animation: spin 1s linear infinite; }
+@keyframes spin { to { transform: rotate(360deg); } }
+
+.nets {
+  flex: 1;
+  overflow-y: auto;
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+  align-content: start;
+  padding-right: 4px;
+}
+.net {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  height: 74px;
+  padding: 0 20px;
+  border-radius: 18px;
+  border: 1px solid var(--line);
+  background: var(--card);
+  text-align: left;
+}
+.net.cur { border-color: var(--ok); background: var(--ok-soft); }
+.net .name { flex: 1; font-size: 20px; font-weight: 700; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.net .meta { font-size: 15px; font-weight: 700; color: var(--ok-ink); }
+.net .meta.saved { color: var(--t3); }
+.bars { display: flex; align-items: flex-end; gap: 3px; height: 22px; flex: none; }
+.bars i { width: 5px; border-radius: 2px; background: var(--line); }
+.bars i:nth-child(1) { height: 25%; } .bars i:nth-child(2) { height: 50%; }
+.bars i:nth-child(3) { height: 75%; } .bars i:nth-child(4) { height: 100%; }
+.bars i.lit { background: var(--sv); }
+.lock { flex: none; opacity: 0.75; }
+.add {
+  margin-top: 14px;
+  height: 60px;
+  border-radius: 18px;
+  border: 1px dashed var(--line);
+  background: var(--card);
+  font-size: 18px;
+  font-weight: 700;
+  color: var(--t2);
+}
+.empty { grid-column: 1 / -1; padding: 40px 0; text-align: center; color: var(--t3); font-size: 18px; }
+
+.form { display: grid; gap: 14px; margin-bottom: 16px; }
+.field {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  height: 68px;
+  padding: 0 20px;
+  border-radius: 18px;
+  background: var(--card);
+  border: 2px solid var(--line);
+  font-size: 22px;
+}
+.field:focus-within { border-color: var(--sv); }
+.field .label { width: 92px; flex: none; font-size: 17px; color: var(--t3); }
+.field input {
+  flex: 1;
+  min-width: 0;
+  height: 100%;
+  border: 0;
+  outline: 0;
+  background: transparent;
+  color: var(--t1);
+  font: inherit;
+  caret-color: var(--sv);
+  user-select: text;
+  -webkit-user-select: text;
+}
+.field input::placeholder { color: var(--t3); font-size: 18px; }
+.eye { height: 44px; padding: 0 14px; border-radius: 12px; background: var(--ctl); font-size: 15px; font-weight: 700; color: var(--t2); }
+.hint { font-size: 17px; color: var(--t3); }
+.msg { min-height: 28px; font-size: 18px; color: var(--t2); display: flex; align-items: center; gap: 10px; }
+.msg.bad { color: var(--bad-ink); }
+.msg.ok { color: var(--ok-ink); }
+.spinner { width: 20px; height: 20px; border-radius: 50%; border: 3px solid var(--line); border-top-color: var(--sv); animation: spin 0.8s linear infinite; }
+.actions { display: flex; gap: 14px; margin-top: 6px; }
+.primary {
+  height: 56px;
+  min-width: 190px;
+  padding: 0 28px;
+  border-radius: 16px;
+  font-size: 19px;
+  font-weight: 700;
+  color: var(--on-fill);
+  background: var(--sv);
+}
+.primary[disabled], .link[disabled] { opacity: 0.4; }
+.link {
+  height: 56px;
+  padding: 0 18px;
+  border-radius: 14px;
+  border: 1px solid var(--bad);
+  background: var(--bad-soft);
+  color: var(--bad-ink);
+  font-size: 16px;
+  font-weight: 700;
+}
+
+/* ---- Gravity Portrait Mode (800x1280) ---- */
+html.ts-portrait .app,
+html.ts-portrait .sheet {
+  inset: auto;
+  left: 0;
+  top: 0;
+  width: 100vh;
+  height: 100vw;
+  transform-origin: 0 0;
+  transform: translateX(100vw) rotate(90deg);
+}
+html.ts-portrait.ts-rot270 .app,
+html.ts-portrait.ts-rot270 .sheet {
+  transform: translateY(100vh) rotate(-90deg);
+}
+html.ts-portrait .app { padding: 20px; }
+html.ts-portrait main {
+  grid-template-columns: 1fr;
+  grid-template-rows: 1fr auto;
+  gap: 16px;
+}
+html.ts-portrait .clock-t { font-size: 120px; line-height: 120px; }
+html.ts-portrait .nets { grid-template-columns: 1fr; }
+html.ts-portrait .tskb-dock {
+  left: 0;
+  top: 0;
+  right: auto;
+  bottom: auto;
+  width: 100vh;
+  padding: 0 8px 8px;
+  transform-origin: 0 0;
+  transform: rotate(90deg) translateY(6%);
+}
+html.ts-portrait .tskb-dock.open { transform: rotate(90deg) translateY(-100%); }
+html.ts-portrait.ts-rot270 .tskb-dock { left: 100vw; top: 100vh; transform: rotate(-90deg) translateY(6%); }
+html.ts-portrait.ts-rot270 .tskb-dock.open { transform: rotate(-90deg) translateY(-100%); }
+html.ts-portrait .tskb-dock .tskb { max-width: none; padding: 12px 10px; gap: 8px; border-radius: 26px; }
+html.ts-portrait .tskb-dock .tskb-row { gap: 6px; }
+html.ts-portrait .tskb-dock .tskb-key { height: 58px; border-radius: 14px; font-size: 24px; }
+html.ts-portrait .tskb-dock .tskb-key.fn,
+html.ts-portrait .tskb-dock .tskb-key.space { font-size: 18px; }
+html.ts-portrait .tskb-dock .tskb-key.enter { font-size: 20px; }
+</style>
+</head>
+<body>
+<div class="app">
+  <main>
+    <section class="card">
+      <div class="hero-top">
+        <span class="brand-pill">联想 View · 家庭智慧桌面</span>
+        <button class="net-pill" id="chipWifi" type="button">Wi‑Fi：<span id="ssidPill">检测中</span></button>
+      </div>
+      <div class="clock-box">
+        <div class="clock-t" id="time">--:--</div>
+        <div class="clock-d" id="date"></div>
+      </div>
+      <div class="status" id="status">
+        <div class="dot" aria-hidden="true"></div>
+        <div class="status-body">
+          <div class="status-main" id="statusText">联想 View · 正在进入桌面</div>
+          <div class="status-sub" id="statusSub">桌面服务就绪后自动呈现主页</div>
+        </div>
+        <button class="cta" id="ctaWifi" type="button">连接 Wi‑Fi</button>
+      </div>
+    </section>
+
+    <section class="card">
+      <div>
+        <div class="info-head">
+          <h2>网络与管理</h2>
+          <span class="info-tag" id="netTag">自检中</span>
+        </div>
+        <div class="rows">
+          <div class="irow">
+            <div class="irow-l">
+              <div class="irow-k">无线网络</div>
+              <div class="irow-v" id="ssid">—</div>
+            </div>
+            <button class="mini-btn" id="btnRowWifi" type="button">设置网络</button>
+          </div>
+          <div class="irow">
+            <div class="irow-l">
+              <div class="irow-k">局域网地址</div>
+              <div class="irow-v mono" id="ip">—</div>
+            </div>
+          </div>
+          <div class="irow">
+            <div class="irow-l">
+              <div class="irow-k">统一管理后台</div>
+              <div class="irow-v mono" id="adminUrl">http://&lt;设备IP&gt;:18091/admin/</div>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="irow-k" style="margin-top:14px">支持自动感应横竖屏 · 联网后同局域网可打开管理后台</div>
+    </section>
+  </main>
+
+  <footer>
+    <span>设备名 <b id="host">—</b></span>
+    <span>主页就绪后自动进入，无需手动操作</span>
+  </footer>
+</div>
+
+<div class="sheet" id="sheet">
+  <section class="pane" id="paneList">
+    <div class="bar">
+      <h3>选择 Wi‑Fi</h3>
+      <button class="icon-btn" id="btnScan" type="button" aria-label="刷新">
+        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round">
+          <path d="M20 12a8 8 0 1 1-2.3-5.6M20 4v5h-5"/></svg></button>
+      <button class="icon-btn" id="btnClose" type="button" aria-label="关闭">
+        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round">
+          <path d="M6 6l12 12M18 6L6 18"/></svg></button>
+    </div>
+    <div class="nets" id="nets"></div>
+    <button class="add" id="btnHidden" type="button">＋ 添加隐藏网络</button>
+  </section>
+
+  <section class="pane" id="paneJoin">
+    <div class="bar">
+      <button class="icon-btn" id="btnBack" type="button" aria-label="返回">
+        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round">
+          <path d="M15 5l-7 7 7 7"/></svg></button>
+      <h3 id="joinTitle">连接</h3>
+    </div>
+    <div class="form">
+      <div class="hint" id="joinHint"></div>
+      <label class="field" id="fieldSsid"><span class="label">网络名称</span>
+        <input id="inSsid" type="text" placeholder="输入网络名称" enterkeyhint="next" autocomplete="off" spellcheck="false"></label>
+      <label class="field" id="fieldPw"><span class="label">密码</span>
+        <input id="inPw" type="password" maxlength="63" data-kb-enter="连接" autocomplete="off" spellcheck="false">
+        <button class="eye" id="btnEye" type="button">显示</button></label>
+      <div class="msg" id="joinMsg"></div>
+      <div class="actions"><button class="primary" id="btnJoin" type="button">连接</button>
+        <button class="link" id="btnForget" type="button">忘记这个网络</button></div>
+    </div>
+  </section>
+</div>
+
+<script>
+const $ = id => document.getElementById(id);
+const esc = s => String(s).replace(/[&<>]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;' }[c]));
+const WEEK = '日一二三四五六';
+
+let lastHm = '', lastDt = '';
+function tick() {
+  if (document.hidden) return;
+  const now = new Date();
+  const hm = String(now.getHours()).padStart(2, '0') + ':' + String(now.getMinutes()).padStart(2, '0');
+  const dt = `${now.getMonth() + 1}月${now.getDate()}日 星期${WEEK[now.getDay()]}`;
+  if (hm !== lastHm) { lastHm = hm; $('time').textContent = hm; }
+  if (dt !== lastDt) { lastDt = dt; $('date').textContent = dt; }
+}
+
+function applyOrient(o) {
+  const root = document.documentElement;
+  let mode = '';
+  try { mode = localStorage.getItem('ts.orientMode') || ''; } catch (e) {}
+  let eff = o || 'l';
+  if (mode === 'landscape') eff = 'l';
+  else if (mode === 'portrait' && eff === 'l') eff = 'p90';
+  root.classList.toggle('ts-portrait', eff === 'p90' || eff === 'p270');
+  root.classList.toggle('ts-rot270', eff === 'p270');
+}
+
+window.thinksmartStatus = function (st) {
+  if (!st || typeof st !== 'object') return;
+  if (st.orient) applyOrient(st.orient);
+  const ip = (st.ip || '').split(',').filter(Boolean);
+  const online = ip.length > 0;
+  const wifiTxt = st.ssid || (online ? '有线 / USB' : '未连接');
+  $('ip').textContent = online ? ip.join('  ') : '未联网';
+  $('host').textContent = st.host || '—';
+  $('ssid').textContent = wifiTxt;
+  $('ssidPill').textContent = wifiTxt;
+  $('netTag').textContent = online ? '网络已连接' : '等待配网';
+  $('adminUrl').textContent = `http://${ip[0] || '<设备IP>'}:18091/admin/`;
+  const box = $('status');
+  box.classList.toggle('offline', !online);
+  if (!online) {
+    $('statusText').textContent = '尚未连接无线网络';
+    $('statusSub').textContent = '请点击右侧按钮选择家庭 Wi‑Fi';
+  } else {
+    $('statusText').textContent = '联想 View · 正在进入桌面';
+    $('statusSub').textContent = '桌面服务就绪后自动呈现主页';
+  }
+};
+
+/* ---- talking to thinksmart-kiosk.py ---- */
+const bridge = window.webkit && window.webkit.messageHandlers && window.webkit.messageHandlers.thinksmart;
+let seq = 0;
+const pending = {};
+const CALL_TIMEOUT = 90000;
+function call(cmd, args) {
+  return new Promise(resolve => {
+    const id = ++seq;
+    const timer = setTimeout(() => window.thinksmartReply({ id, ok: false, reason: 'noreply' }), CALL_TIMEOUT);
+    pending[id] = r => { clearTimeout(timer); resolve(r); };
+    const msg = Object.assign({ id, cmd }, args || {});
+    if (bridge) bridge.postMessage(JSON.stringify(msg));
+    else mock(msg);
+  });
+}
+window.thinksmartReply = function (r) {
+  if (!r) return;
+  const done = pending[r.id];
+  delete pending[r.id];
+  if (done) done(r);
+};
+function mock(m) {
+  const reply = (r, ms) => setTimeout(() => window.thinksmartReply(Object.assign({ id: m.id }, r)), ms);
+  if (m.cmd === 'scan') reply({ ok: true, networks: [
+    { ssid: 'Home_5G', signal: 88, secure: true, active: true, saved: true },
+    { ssid: 'Home', signal: 72, secure: true, saved: true },
+    { ssid: 'Guest', signal: 40, secure: false },
+  ] }, 500);
+  else if (m.cmd === 'orient') reply({ ok: true, orient: 'l' }, 0);
+  else reply({ ok: true }, 0);
+}
+
+/* ---- Wi-Fi sheet ---- */
+const REASONS = {
+  password: '密码不对，请再试一次',
+  notfound: '找不到这个网络，可能离得太远或名称有误',
+  timeout: '连接超时，请靠近路由器后再试',
+  noreply: '设备没有回应，请过一会儿再看看网络状态',
+  invalid: '网络名称或密码长度不对（密码需 8–63 位）',
+};
+let nets = [], target = null, fields = { ssid: '', pw: '' }, showPw = false, busy = false, paneTimer = 0;
+
+function openSheet() {
+  if (busy) return;
+  $('sheet').classList.add('open');
+  call('busy', { value: true });
+  showList();
+  scan();
+}
+function closeSheet() {
+  if (busy) return;
+  clearTimeout(paneTimer);
+  paneTimer = 0;
+  target = null;
+  fields = { ssid: '', pw: '' };
+  showPw = false;
+  if (document.activeElement) document.activeElement.blur();
+  $('sheet').classList.remove('open');
+  call('busy', { value: false });
+}
+function showPane(id) {
+  for (const p of document.querySelectorAll('.pane')) p.classList.toggle('on', p.id === id);
+}
+function showList() {
+  clearTimeout(paneTimer);
+  paneTimer = 0;
+  target = null;
+  if (document.activeElement) document.activeElement.blur();
+  showPane('paneList');
+  renderNets();
+}
+
+let scanBusy = false;
+async function scan() {
+  if (scanBusy) return;
+  scanBusy = true;
+  $('btnScan').classList.add('spin');
+  if (!nets.length) $('nets').innerHTML = '<div class="empty">正在搜索附近的 Wi‑Fi…</div>';
+  try {
+    const r = await call('scan');
+    nets = r.ok ? r.networks : [];
+    renderNets(r.ok ? '' : '搜索失败，点右上角刷新再试');
+  } finally {
+    scanBusy = false;
+    $('btnScan').classList.remove('spin');
+  }
+}
+
+function bars(signal) {
+  const lit = signal > 75 ? 4 : signal > 50 ? 3 : signal > 25 ? 2 : 1;
+  return '<span class="bars">' + [1, 2, 3, 4].map(i => `<i class="${i <= lit ? 'lit' : ''}"></i>`).join('') + '</span>';
+}
+const LOCK = '<svg class="lock" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="5" y="11" width="14" height="10" rx="2"/><path d="M8 11V8a4 4 0 0 1 8 0v3"/></svg>';
+
+function renderNets(error) {
+  const box = $('nets');
+  box.textContent = '';
+  if (error || !nets.length) {
+    box.innerHTML = `<div class="empty">${error || '附近没有搜到 Wi‑Fi'}</div>`;
+    return;
+  }
+  for (const n of nets) {
+    const b = document.createElement('button');
+    b.type = 'button';
+    b.className = 'net' + (n.active ? ' cur' : '');
+    b.innerHTML = `${bars(n.signal)}<span class="name">${esc(n.ssid)}</span>` +
+      (n.active ? '<span class="meta">已连接</span>' : n.saved ? '<span class="meta saved">已保存</span>' : '') +
+      (n.secure ? LOCK : '');
+    b.addEventListener('click', () => join(n, false));
+    box.appendChild(b);
+  }
+}
+
+function join(net, hidden) {
+  clearTimeout(paneTimer);
+  paneTimer = 0;
+  target = { ssid: net ? net.ssid : '', secure: net ? net.secure : true, hidden, saved: !!(net && net.saved),
+             mode: net && net.active ? 'info' : net && net.saved ? 'saved' : 'type' };
+  fields = { ssid: target.ssid, pw: '' };
+  showPw = false;
+  $('joinTitle').textContent = hidden ? '添加隐藏网络' : target.ssid;
+  const quality = !net ? '' : net.signal > 75 ? '信号很好' : net.signal > 50 ? '信号良好' : net.signal > 25 ? '信号一般' : '信号较弱';
+  $('joinHint').textContent = hidden ? '输入网络名称和密码（没有密码就留空），然后点「连接」'
+    : target.mode === 'info' ? '已连接 · ' + quality
+    : target.mode === 'saved' ? (target.secure ? '已保存的网络 · ' + quality + '，点「连接」用保存的密码连接' : '已保存的开放网络 · ' + quality + '，点「连接」直接连接')
+    : (target.secure ? '加密网络 · ' + quality + '，输入密码后点「连接」' : '开放网络 · ' + quality);
+  setMsg('');
+  showPane('paneJoin');
+  renderFields();
+  if (target.mode === 'type' && !target.secure && !hidden) connect();
+  else focusField();
+}
+
+function focusField() {
+  if (!target || !typing() || busy) return;
+  const el = target.hidden && !fields.ssid ? $('inSsid') : target.secure ? $('inPw') : $('inSsid');
+  setTimeout(() => { if (target && typing() && !busy) el.focus(); }, 0);
+}
+
+function typing() { return !!(target && target.mode === 'type' && (target.secure || target.hidden)); }
+
+function canConnect() {
+  if (!target || (target.mode !== 'type' && target.mode !== 'saved')) return false;
+  const pwLen = fields.pw.length;
+  const pwOk = target.hidden ? (pwLen === 0 || (pwLen >= 8 && pwLen <= 63)) : (!target.secure || (pwLen >= 8 && pwLen <= 63));
+  const ssidBytes = new TextEncoder().encode(fields.ssid).length;
+  const ssidOk = !target.hidden || (ssidBytes > 0 && ssidBytes <= 32);
+  return !busy && ssidOk && pwOk;
+}
+
+function renderFields() {
+  if (!target) return;
+  if ($('inSsid').value !== fields.ssid) $('inSsid').value = fields.ssid;
+  if ($('inPw').value !== fields.pw) $('inPw').value = fields.pw;
+  $('inPw').type = showPw ? 'text' : 'password';
+  $('inPw').placeholder = target.hidden ? '没有密码就留空' : '至少 8 位';
+  $('inSsid').disabled = $('inPw').disabled = busy;
+  $('btnEye').textContent = showPw ? '隐藏' : '显示';
+  $('fieldSsid').style.display = typing() && target.hidden ? '' : 'none';
+  $('fieldPw').style.display = typing() && target.secure ? '' : 'none';
+  $('btnForget').style.display = target.saved || target.mode === 'info' ? '' : 'none';
+  const kbOpen = document.documentElement.classList.contains('tskb-open');
+  $('btnJoin').style.display = (target.mode === 'saved' || (target.mode === 'type' && (!typing() || !kbOpen))) ? '' : 'none';
+  $('btnJoin').disabled = busy || (target.mode === 'type' && !canConnect());
+  $('btnForget').disabled = $('btnBack').disabled = $('btnClose').disabled = busy;
+}
+
+function setMsg(text, kind) {
+  const m = $('joinMsg');
+  m.className = 'msg' + (kind ? ' ' + kind : '');
+  m.innerHTML = (kind === 'wait' ? '<span class="spinner"></span>' : '') + esc(text);
+}
+
+async function connect() {
+  if (busy || !target || (target.mode !== 'saved' && !canConnect())) return;
+  clearTimeout(paneTimer);
+  paneTimer = 0;
+  busy = true;
+  renderFields();
+  const curTarget = target;
+  const usingSaved = target.mode === 'saved';
+  setMsg(usingSaved && target.secure ? `正在用已保存的密码连接 ${fields.ssid}…` : `正在连接 ${fields.ssid}…`, 'wait');
+  connectId = seq + 1;
+  const r = await call('connect', { ssid: fields.ssid, password: usingSaved || !target.secure ? '' : fields.pw, hidden: !!target.hidden });
+  connectId = null;
+  busy = false;
+  if (!target || target !== curTarget) return;
+  if (r.ok) {
+    target.ssid = fields.ssid;
+    target.hidden = false;
+    target.secure = !!(fields.pw || (usingSaved && target.secure));
+    target.mode = 'info';
+    target.saved = true;
+    $('joinTitle').textContent = fields.ssid;
+    setMsg(`已连接 ${fields.ssid}`, 'ok');
+    renderFields();
+    let found = false;
+    nets = nets.map(n => {
+      if (n.ssid === fields.ssid) found = true;
+      return Object.assign({}, n, { active: n.ssid === fields.ssid, saved: n.ssid === fields.ssid ? true : n.saved });
+    });
+    if (!found) nets.unshift({ ssid: fields.ssid, signal: 80, secure: target.secure, active: true, saved: true });
+    paneTimer = setTimeout(() => { paneTimer = 0; if (!busy && target === curTarget && $('sheet').classList.contains('open') && $('paneJoin').classList.contains('on')) { showList(); scan(); } }, 1500);
+    return;
+  }
+  if (target.secure) target.mode = 'type';
+  if (r.reason === 'password') fields.pw = '';
+  setMsg(usingSaved && r.reason === 'password' ? '保存的密码已失效，请重新输入'
+    : REASONS[r.reason] || ('连接失败' + (r.detail ? '：' + r.detail : '')), 'bad');
+  renderFields();
+  focusField();
+}
+
+const STAGES = {
+  scan: '正在搜索网络…',
+  join: '正在连接路由器…',
+  auth: '正在验证密码…',
+  ip: '密码正确，正在获取网络地址…',
+};
+let connectId = null;
+window.thinksmartProgress = function (p) {
+  if (busy && p.id === connectId && STAGES[p.stage]) setMsg(STAGES[p.stage], 'wait');
+};
+
+async function forget() {
+  if (busy || !target) return;
+  clearTimeout(paneTimer);
+  paneTimer = 0;
+  busy = true;
+  const curTarget = target;
+  const ssid = target.ssid || fields.ssid;
+  if (!ssid) { busy = false; renderFields(); return; }
+  setMsg(`正在忘记 ${ssid}…`, 'wait');
+  renderFields();
+  const r = await call('forget', { ssid });
+  busy = false;
+  if (!target || target !== curTarget) return;
+  if (!r || !r.ok) {
+    setMsg(`没能忘记 ${ssid}，请再试一次`, 'bad');
+    return renderFields();
+  }
+  target.saved = false;
+  target.mode = 'done';
+  setMsg(`已忘记 ${ssid}，下次连接需要重新输入密码`, 'ok');
+  renderFields();
+  nets = nets.map(n => n.ssid === ssid ? Object.assign({}, n, { saved: false, active: false }) : n);
+  paneTimer = setTimeout(() => { paneTimer = 0; if (!busy && target === curTarget && $('sheet').classList.contains('open') && $('paneJoin').classList.contains('on')) { showList(); scan(); } }, 1400);
+}
+
+$('ctaWifi').addEventListener('click', openSheet);
+$('chipWifi').addEventListener('click', openSheet);
+$('btnRowWifi').addEventListener('click', openSheet);
+$('btnClose').addEventListener('click', closeSheet);
+$('btnScan').addEventListener('click', scan);
+$('btnHidden').addEventListener('click', () => join(null, true));
+$('btnForget').addEventListener('click', forget);
+$('btnJoin').addEventListener('click', connect);
+$('btnBack').addEventListener('click', () => { if (!busy) showList(); });
+$('btnEye').addEventListener('pointerdown', e => { e.preventDefault(); e.stopPropagation(); showPw = !showPw; renderFields(); });
+window.addEventListener('thinksmart-keyboard', () => { if (target) renderFields(); });
+$('inSsid').addEventListener('input', () => {
+  let v = $('inSsid').value;
+  const enc = new TextEncoder();
+  while (enc.encode(v).length > 32) v = Array.from(v).slice(0, -1).join('');
+  if ($('inSsid').value !== v) $('inSsid').value = v;
+  fields.ssid = v;
+  if (target) $('btnJoin').disabled = busy || (target.mode === 'type' && !canConnect());
+});
+$('inPw').addEventListener('input', () => {
+  let v = $('inPw').value;
+  if (v.length > 63) {
+    v = v.slice(0, 63);
+    const c = v.charCodeAt(v.length - 1);
+    if (c >= 0xD800 && c <= 0xDBFF) v = v.slice(0, -1);
+  }
+  fields.pw = v;
+  if ($('inPw').value !== v) $('inPw').value = v;
+  if (target) $('btnJoin').disabled = busy || (target.mode === 'type' && !canConnect());
+});
+$('inSsid').addEventListener('keydown', e => {
+  if (e.key !== 'Enter') return;
+  e.preventDefault();
+  if (target.secure) $('inPw').focus();
+});
+$('inPw').addEventListener('keydown', e => {
+  if (e.key !== 'Enter') return;
+  if (!canConnect()) { e.preventDefault(); return; }
+  connect();
+});
+
+tick();
+setInterval(tick, 1000);
+setInterval(() => {
+  if (document.hidden || busy || document.documentElement.classList.contains('tskb-open')) return;
+  call('orient').then(r => { if (r && r.ok && r.orient) applyOrient(r.orient); });
+}, 1500);
+window.thinksmartStatus(Object.fromEntries(new URLSearchParams(location.search)));
+if (location.hash === '#wifi') openSheet();
+document.addEventListener('visibilitychange', () => { if (!document.hidden) tick(); });
+</script>
+</body>
+</html>

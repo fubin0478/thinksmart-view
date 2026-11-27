@@ -1,0 +1,98 @@
+[
+  {
+    "id": 3,
+    "name": "美国优化线路",
+    "country": "us",
+    "bandwidth": "500Mbps",
+    "traffic_limit": "1TB",
+    "traffic_reset_day": 16,
+    "traffic_limit_override": true,
+    "price": "$49.00",
+    "cycle": "Year",
+    "expires": "2027-04-20T00:00:00.000Z"
+  },
+  {
+    "id": 12,
+    "name": "日本绿云",
+    "country": "jp",
+    "bandwidth": "1Gbps",
+    "traffic_limit": "3TB",
+    "traffic_reset_day": 1,
+    "traffic_limit_override": true,
+    "price": "$99",
+    "cycle": "Year",
+    "expires": "2029-04-29T00:00:00.000Z"
+  },
+  {
+    "id": 4,
+    "name": "法国服务器",
+    "country": "fr",
+    "bandwidth": "500M",
+    "traffic_limit": "3TB",
+    "traffic_reset_day": 1,
+    "traffic_limit_override": true,
+    "price": "$23",
+    "cycle": "Year",
+    "expires": "2027-04-15T16:00:00.000Z"
+  },
+  {
+    "id": 6,
+    "name": "美国小鸡",
+    "country": "us",
+    "bandwidth": "100Mbps",
+    "traffic_limit": "330GB",
+    "traffic_reset_day": 19,
+    "traffic_limit_override": true,
+    "price": "¥69",
+    "cycle": "Year",
+    "expires": "2028-05-05T00:00:00.000Z"
+  },
+  {
+    "id": 15,
+    "name": "日本小鸡",
+    "country": "jp",
+    "bandwidth": "500Mbps",
+    "traffic_limit": "1TB",
+    "traffic_reset_day": 18,
+    "traffic_limit_override": true,
+    "price": "¥49",
+    "cycle": "Year",
+    "expires": "2028-03-27T16:00:00.000Z"
+  },
+  {
+    "id": 19,
+    "name": "香港小鸡",
+    "country": "hk",
+    "bandwidth": "1Gbps",
+    "traffic_limit": "500GB",
+    "traffic_reset_day": 22,
+    "traffic_limit_override": true,
+    "price": "¥49",
+    "cycle": "Year",
+    "expires": "2028-03-21T00:00:00.000Z"
+  },
+  {
+    "id": 21,
+    "name": "德国小鸡",
+    "country": "de",
+    "bandwidth": "2.5Gbps",
+    "traffic_limit": "2TB",
+    "traffic_reset_day": 1,
+    "traffic_limit_override": true,
+    "price": "$10.00",
+    "cycle": "Year",
+    "expires": "2027-03-23T00:00:00.000Z"
+  },
+  {
+    "id": 10,
+    "name": "越南服务器",
+    "country": "vn",
+    "bandwidth": "1Gbps",
+    "traffic_limit": "3TB",
+    "traffic_reset_day": 1,
+    "traffic_limit_override": true,
+    "price": "$100",
+    "cycle": "Year",
+    "expires": "2029-04-28T00:00:00.000Z"
+  }
+]

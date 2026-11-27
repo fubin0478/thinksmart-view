@@ -1,0 +1,27 @@
+# xiaozhi-hub-server 精简运行依赖清单
+# 仅保留 ThinkSmart View 本地实装模块（SileroVAD + SherpaXASR/MacASR + EdgeTTS/IndexStreamTTS/OpenAITTS + 云端 OpenAI 兼容接口 + function_call + 插件）。
+
+numpy
+websockets
+aiohttp
+httpx
+requests
+PySocks
+pyyaml
+ruamel.yaml
+loguru
+portalocker
+Jinja2
+mcp
+
+opuslib_next
+pydub
+onnxruntime
+sherpa_onnx
+sentencepiece
+
+openai
+edge_tts
+
+markitdown
+cnlunar

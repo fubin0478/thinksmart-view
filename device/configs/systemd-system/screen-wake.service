@@ -1,0 +1,19 @@
+[Unit]
+Description=Screen Wake Daemon (touch + accelerometer)
+After=multi-user.target
+
+[Service]
+Type=simple
+Environment=PYTHONUNBUFFERED=1 PYTHONDONTWRITEBYTECODE=1
+ExecStart=/usr/bin/python3 -B /usr/local/bin/screen-wake-daemon.py
+Restart=always
+RestartSec=1
+StandardOutput=journal
+StandardError=journal
+MemoryHigh=48M
+MemoryMax=64M
+TasksMax=16
+TimeoutStopSec=5
+
+[Install]
+WantedBy=multi-user.target

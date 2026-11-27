@@ -1,0 +1,4 @@
+[Service]
+Environment="ADMIN_VPN_TUNNEL_NETS=203.0.113.10/32,198.51.100.20/32"
+Environment="ADMIN_VPS_URL=https://203.0.113.10:18443/admin/"
+Environment="ADMIN_LAN_URL=http://192.168.1.100:18091/admin/"

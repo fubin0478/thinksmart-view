@@ -1,0 +1,18 @@
+[Unit]
+Description=ThinkSmart xHCI USB Host Controller Self-Healing Watchdog
+After=thinksmart-usb-host.service
+Wants=thinksmart-usb-host.service
+
+[Service]
+Type=simple
+Environment=PYTHONUNBUFFERED=1 PYTHONDONTWRITEBYTECODE=1
+ExecStart=/usr/bin/python3 -B /usr/local/sbin/thinksmart-usb-watchdog
+Restart=always
+RestartSec=3
+TimeoutStopSec=25
+MemoryHigh=32M
+MemoryMax=48M
+TasksMax=16
+
+[Install]
+WantedBy=multi-user.target

@@ -1,0 +1,126 @@
+#!/usr/bin/env bash
+# ThinkSmart AirPlay privileged sysfs/renice helper (invoked via sudoers by ubuntu).
+set -euo pipefail
+
+ACTION="${1:-}"
+
+tune_init() {
+  echo 0 > /proc/irq/49/smp_affinity_list 2>/dev/null || true
+  echo 1 > /proc/irq/68/smp_affinity_list 2>/dev/null || true
+  echo 2 > /proc/irq/50/smp_affinity_list 2>/dev/null || true
+  echo 3 > /proc/irq/77/smp_affinity_list 2>/dev/null || true
+  echo 3 > /proc/irq/27/smp_affinity_list 2>/dev/null || true
+  echo 4096 > /proc/sys/net/core/rps_sock_flow_entries 2>/dev/null || true
+  echo 4096 > /sys/class/net/wlan0/queues/rx-0/rps_flow_cnt 2>/dev/null || true
+  echo 04 > /sys/class/net/wlan0/queues/rx-0/rps_cpus 2>/dev/null || true
+  echo 10000 > /sys/devices/system/cpu/cpufreq/schedutil/rate_limit_us 2>/dev/null || true
+  wtids=""
+  for p in $(pidof weston 2>/dev/null || true); do
+    for t in /proc/"$p"/task/*; do
+      [ -d "$t" ] || continue
+      tid="${t##*/}"
+      read -r comm < "$t/comm" 2>/dev/null || comm=""
+      if [ "$comm" = "weston" ] || [ "$comm" = "weston:ir3q0" ]; then
+        wtids="$wtids $tid"
+      fi
+    done
+  done
+  if [ -n "$wtids" ]; then
+    # shellcheck disable=SC2086
+    renice -n -15 -p $wtids >/dev/null 2>&1 || true
+  fi
+}
+
+tune_boost() {
+  local pid="${1:-}"
+  [[ "$pid" =~ ^[0-9]+$ ]] && [ "$pid" -gt 1 ] || exit 1
+  local uid cmd
+  uid="$(stat -c '%u' "/proc/$pid" 2>/dev/null || echo '')"
+  [ "$uid" = "1000" ] || exit 1
+  cmd="$(tr '\0' ' ' < "/proc/$pid/cmdline" 2>/dev/null || true)"
+  case "$cmd" in
+    *uxplay*|*stdbuf*) ;;
+    *) exit 1 ;;
+  esac
+  renice -n -10 -p "$pid" >/dev/null 2>&1 || true
+}
+
+tune_turbo() {
+  local mode="${1:-}"
+  local uxplay_pid="${2:-0}"
+  local gov gpu_min client_nice client_cpus
+  if [ "$mode" = "on" ]; then
+    gov="performance"
+    gpu_min="650000000"
+    client_nice="19"
+    client_cpus="7"
+  elif [ "$mode" = "off" ]; then
+    gov="schedutil"
+    gpu_min="19200000"
+    client_nice="0"
+    client_cpus="0-7"
+  else
+    exit 1
+  fi
+  [[ "$uxplay_pid" =~ ^[0-9]+$ ]] || uxplay_pid=0
+
+  for p in /sys/devices/system/cpu/cpu[0-9]*/cpufreq/scaling_governor; do
+    [ -w "$p" ] && echo "$gov" > "$p" 2>/dev/null || true
+  done
+  [ -w /sys/class/devfreq/1c00000.gpu/min_freq ] && echo "$gpu_min" > /sys/class/devfreq/1c00000.gpu/min_freq 2>/dev/null || true
+
+  if [ "$mode" = "on" ] && [ "$uxplay_pid" -gt 1 ] && [ -d "/proc/$uxplay_pid" ]; then
+    local ux_uid ux_cmd
+    ux_uid="$(stat -c '%u' "/proc/$uxplay_pid" 2>/dev/null || echo '')"
+    ux_cmd="$(tr '\0' ' ' < "/proc/$uxplay_pid/cmdline" 2>/dev/null || true)"
+    case "${ux_uid}:${ux_cmd}" in
+      1000:*uxplay*|1000:*stdbuf*)
+        taskset -a -cp 0-6 "$uxplay_pid" >/dev/null 2>&1 || true
+        utids=""
+        for t in /proc/"$uxplay_pid"/task/*; do
+          [ -d "$t" ] && utids="$utids ${t##*/}"
+        done
+        if [ -n "$utids" ]; then
+          # shellcheck disable=SC2086
+          renice -n -10 -p $utids >/dev/null 2>&1 || true
+        fi
+        ;;
+    esac
+  fi
+
+  btids=""
+  for entry in /proc/[0-9]*; do
+    [ -d "$entry" ] || continue
+    pid="${entry##*/}"
+    [ -r "$entry/cmdline" ] || continue
+    uid="$(stat -c '%u' "$entry" 2>/dev/null || echo '')"
+    [ "$uid" = "1000" ] || continue
+    cmd="$(tr '\0' ' ' < "$entry/cmdline" 2>/dev/null || true)"
+    case "$cmd" in
+      *thinksmart_client*|*xiaozhi-server*)
+        taskset -a -cp "$client_cpus" "$pid" >/dev/null 2>&1 || true
+        for t in "$entry"/task/*; do
+          [ -d "$t" ] || continue
+          read -r comm < "$t/comm" 2>/dev/null || comm=""
+          if [ "$comm" = "python" ] || [ "$comm" = "python3" ]; then
+            btids="$btids ${t##*/}"
+          fi
+        done
+        ;;
+    esac
+  done
+  if [ -n "$btids" ]; then
+    # shellcheck disable=SC2086
+    renice -n "$client_nice" -p $btids >/dev/null 2>&1 || true
+  fi
+}
+
+case "$ACTION" in
+  init)  tune_init ;;
+  turbo) tune_turbo "${2:-}" "${3:-0}" ;;
+  boost) tune_boost "${2:-}" ;;
+  *)
+    echo "Usage: $0 {init|turbo {on|off} [uxplay_pid]|boost <pid>}" >&2
+    exit 2
+    ;;
+esac

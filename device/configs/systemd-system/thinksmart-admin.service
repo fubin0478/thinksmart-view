@@ -1,0 +1,47 @@
+[Unit]
+Description=ThinkSmart View admin console (one page for intercom, messages, countdowns, study, tutor, local songs, Clash; loopback :8097)
+After=network.target mihomo.service
+Wants=network.target
+
+[Service]
+Type=simple
+User=ubuntu
+Group=ubuntu
+ExecStart=/opt/thinksmart-addons/venv/bin/python /usr/local/bin/thinksmart-admin.py
+Environment=PYTHONUNBUFFERED=1 PYTHONDONTWRITEBYTECODE=1 ADMIN_IDLE_EXIT_SEC=0
+# mihomo 的密钥只在 root 能读的配置里：systemd 启动时把配置复制给本服务（只本服务能读），浏览器拿不到
+LoadCredential=mihomo.yaml:/etc/mihomo/config.yaml
+StateDirectory=thinksmart-admin
+StateDirectoryMode=0700
+# 完整面板 MetaCubeXD 的文件在 /etc/mihomo/ui，而 /etc/mihomo 只有 root 能进：只读挂一份给本服务
+RuntimeDirectory=thinksmart-admin
+RuntimeDirectoryMode=0700
+BindReadOnlyPaths=-/etc/mihomo/ui:/run/thinksmart-admin/clash-ui
+Restart=on-failure
+RestartSec=3
+TimeoutStopSec=10
+NoNewPrivileges=yes
+PrivateTmp=yes
+ProtectSystem=strict
+ProtectHome=read-only
+# 歌曲只在这三处：本机音乐、小智的音乐文件夹、U 盘（没插或没有时跳过）
+ReadWritePaths=-/home/ubuntu/Music -/home/ubuntu/xiaozhi-hub-server/main/xiaozhi-server/music -/mnt/usb
+# 设置页：小智配置目录、设备客户端配置与各本机服务配置目录（没装时跳过）
+ReadWritePaths=-/home/ubuntu/xiaozhi-hub-server/main/xiaozhi-server/data -/home/ubuntu/xiaozhi-hub-server/main/xiaozhi-server/config/assets/wakeup_words -/home/ubuntu/.config/thinksmart-client -/home/ubuntu/.local/share/thinksmart-client -/home/ubuntu/.config/thinksmart-qqmusic -/var/lib/thinksmart-home -/var/lib/thinksmart-study -/var/lib/thinksmart-tutor -/var/lib/thinksmart-monitor
+ProtectKernelTunables=yes
+ProtectKernelModules=yes
+ProtectKernelLogs=yes
+ProtectControlGroups=yes
+ProtectClock=yes
+ProtectHostname=yes
+RestrictRealtime=yes
+RestrictSUIDSGID=yes
+LockPersonality=yes
+RestrictAddressFamilies=AF_UNIX AF_INET AF_INET6
+MemoryHigh=160M
+MemoryMax=220M
+TasksMax=48
+Nice=5
+
+[Install]
+WantedBy=multi-user.target

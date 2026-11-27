@@ -1,0 +1,102 @@
+{
+  "version": 4,
+  "note": "主页底部的磁贴。group: app = 功能磁贴（彩色方块图标，七个排一行），quick = 另起一行的快捷开关（sub 是副标题，现在都收起来了）。2026-11-25：「亮度」并入「设置」，「设置」排在「AI讲题」后面。color 写一个颜色。action.type 支持 xiaozhi / xiaozhi-settings / navigate(url 需在 home_overlay.js 白名单) / brightness / study-toggle / focus / messages / sleep（一键按上次的睡眠组合开始，目前没放在底栏）",
+  "apps": [
+    {
+      "id": "xiaozhi",
+      "group": "app",
+      "title": "小智",
+      "icon": "xiaozhi",
+      "color": "#7c8cff",
+      "action": {
+        "type": "xiaozhi"
+      }
+    },
+    {
+      "id": "music",
+      "group": "app",
+      "title": "音乐",
+      "icon": "music",
+      "color": "#3ddc97",
+      "action": {
+        "type": "navigate",
+        "url": "http://127.0.0.1:8091/"
+      }
+    },
+    {
+      "id": "focus",
+      "group": "app",
+      "title": "专注睡眠",
+      "icon": "timer",
+      "color": "#ff8a5c",
+      "action": {
+        "type": "focus"
+      }
+    },
+    {
+      "id": "messages",
+      "group": "app",
+      "title": "闹钟留言",
+      "icon": "alarm",
+      "color": "#f5c04a",
+      "action": {
+        "type": "messages"
+      }
+    },
+    {
+      "id": "server",
+      "group": "app",
+      "title": "服务器",
+      "icon": "server",
+      "color": "#5ab8ff",
+      "action": {
+        "type": "navigate",
+        "url": "http://127.0.0.1:8092/"
+      }
+    },
+    {
+      "id": "tutor",
+      "group": "app",
+      "title": "AI讲题",
+      "icon": "tutor",
+      "color": "#a78bfa",
+      "action": {
+        "type": "navigate",
+        "url": "http://127.0.0.1:8096/"
+      }
+    },
+    {
+      "id": "settings",
+      "group": "app",
+      "title": "设置",
+      "icon": "gear",
+      "color": "#a3aec2",
+      "sub": "亮度、主题、网络、音量",
+      "action": {
+        "type": "xiaozhi-settings"
+      }
+    },
+    {
+      "id": "study",
+      "hidden": true,
+      "group": "quick",
+      "title": "学习陪伴",
+      "icon": "book",
+      "sub": "已关闭",
+      "action": {
+        "type": "study-toggle"
+      }
+    },
+    {
+      "id": "brightness",
+      "hidden": true,
+      "group": "quick",
+      "title": "亮度",
+      "icon": "sun",
+      "sub": "亮度、主题",
+      "action": {
+        "type": "brightness"
+      }
+    }
+  ]
+}

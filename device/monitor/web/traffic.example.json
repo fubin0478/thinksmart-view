@@ -1,0 +1,74 @@
+{
+  "rule_id": 4,
+  "server_id": 3,
+  "reset_day": 16,
+  "limit_bytes": 1000000000000,
+  "complete_from": "2026-11-16T00:00:00+08:00",
+  "calibration": {
+    "from": "2026-10-16T00:00:00+08:00",
+    "to": "2026-11-16T00:00:00+08:00",
+    "observed_bytes": 2725097925,
+    "used_bytes": 716570000000,
+    "extra_bytes": 300000000000,
+    "at": "2026-11-05T08:15:28.812177+08:00",
+    "source": "用户提供的商家截图：716.57GB，双向合计；2026-11-12增加300GB流量包（11-16重置日一并失效）"
+  },
+  "local_rules": {
+    "12": {
+      "server_id": 12,
+      "name": "日本绿云月流量",
+      "reset_day": 1,
+      "limit_bytes": 3000000000000,
+      "mode": "both",
+      "complete_from": "2026-12-01T00:00:00+08:00"
+    },
+    "4": {
+      "server_id": 4,
+      "name": "法国服务器月流量",
+      "reset_day": 1,
+      "limit_bytes": 3000000000000,
+      "mode": "max",
+      "complete_from": "2026-12-01T00:00:00+08:00"
+    },
+    "6": {
+      "server_id": 6,
+      "name": "美国小鸡月流量",
+      "reset_day": 19,
+      "limit_bytes": 330000000000,
+      "mode": "both",
+      "complete_from": "2026-11-19T00:00:00+08:00"
+    },
+    "15": {
+      "server_id": 15,
+      "name": "日本小鸡月流量",
+      "reset_day": 18,
+      "limit_bytes": 1000000000000,
+      "mode": "both",
+      "complete_from": "2026-11-18T00:00:00+08:00"
+    },
+    "19": {
+      "server_id": 19,
+      "name": "香港小鸡月流量",
+      "reset_day": 22,
+      "limit_bytes": 500000000000,
+      "mode": "both",
+      "complete_from": "2026-11-22T00:00:00+08:00"
+    },
+    "21": {
+      "server_id": 21,
+      "name": "德国小鸡月流量",
+      "reset_day": 1,
+      "limit_bytes": 2000000000000,
+      "mode": "both",
+      "complete_from": "2026-12-01T00:00:00+08:00"
+    },
+    "10": {
+      "server_id": 10,
+      "name": "越南服务器月流量",
+      "reset_day": 1,
+      "limit_bytes": 3000000000000,
+      "mode": "both",
+      "complete_from": "2026-12-01T00:00:00+08:00"
+    }
+  }
+}

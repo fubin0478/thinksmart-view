@@ -1,0 +1,258 @@
+#!/usr/bin/env python3
+"""Store the Metaso and Amap keys for the hub's web_search (keys arrive on stdin, two lines; an empty
+line keeps the current value). Each key is checked against its service first; nothing is printed
+except OK/failed. Then the user hub restarts so the keys take effect."""
+import json, os, pwd, re, stat, subprocess, sys, time, urllib.error, urllib.parse, urllib.request
+
+C = '/home/ubuntu/xiaozhi-hub-server/main/xiaozhi-server/data/.config.yaml'
+BACKUP_DIR = '/var/backups/thinksmart-claude-20261105-voice'
+noproxy = urllib.request.build_opener(urllib.request.ProxyHandler({}))
+
+
+def check_metaso(k):
+    req = urllib.request.Request(
+        'https://metaso.cn/api/v1/search',
+        method='POST',
+        data=json.dumps({'q': '北京天气', 'size': 2, 'scope': 'webpage', 'stream': False}).encode(),
+        headers={'Authorization': 'Bearer ' + k, 'Content-Type': 'application/json'},
+    )
+    try:
+        with noproxy.open(req, timeout=15) as resp:
+            d = json.loads(resp.read(65536))
+        if not isinstance(d, dict):
+            return False, 'invalid JSON'
+        return bool(d.get('webpages')), f"{len(d.get('webpages') or [])} 条结果"
+    except urllib.error.HTTPError as e:
+        code = e.code
+        e.close()
+        return False, f'HTTP {code}'
+    except Exception as e:
+        return False, type(e).__name__
+
+
+def check_amap(k):
+    q = urllib.parse.urlencode({'key': k, 'keywords': '万达广场', 'city': '北京', 'offset': 1})
+    try:
+        with noproxy.open('https://restapi.amap.com/v3/place/text?' + q, timeout=15) as resp:
+            d = json.loads(resp.read(65536))
+        if not isinstance(d, dict):
+            return False, 'invalid JSON'
+        return d.get('status') == '1', (f"{d.get('count')} 个地点" if d.get('status') == '1' else str(d.get('info')))
+    except urllib.error.HTTPError as e:
+        code = e.code
+        e.close()
+        return False, f'HTTP {code}'
+    except Exception as e:
+        return False, type(e).__name__
+
+
+def _open_parent_dir_nofollow(path: str):
+    norm = os.path.abspath(path)
+    parts = [p for p in norm.split('/') if p]
+    if len(parts) < 2:
+        raise OSError('Invalid config path')
+    dfd = os.open('/', os.O_RDONLY | getattr(os, 'O_DIRECTORY', 0))
+    try:
+        for comp in parts[:-1]:
+            nxt = os.open(
+                comp,
+                os.O_RDONLY | getattr(os, 'O_DIRECTORY', 0) | getattr(os, 'O_NOFOLLOW', 0),
+                dir_fd=dfd,
+            )
+            os.close(dfd)
+            dfd = nxt
+        return dfd, parts[-1]
+    except BaseException:
+        os.close(dfd)
+        raise
+
+
+def update_config_keys(config_path: str, ok_keys: dict, backup_dir: str = BACKUP_DIR, owner_user: str = 'ubuntu') -> None:
+    try:
+        dfd, leaf = _open_parent_dir_nofollow(config_path)
+    except OSError:
+        sys.exit('配置文件目录路径异常（含符号链接或不存在），已拒绝写入')
+    try:
+        file_existed = True
+        try:
+            cfd = os.open(leaf, os.O_RDONLY | getattr(os, 'O_NOFOLLOW', 0) | getattr(os, 'O_NONBLOCK', 0), dir_fd=dfd)
+        except FileNotFoundError:
+            file_existed = False
+            raw_cfg = ''
+        except OSError:
+            sys.exit('配置文件路径异常（符号链接或无法打开），已拒绝写入')
+        if file_existed:
+            with os.fdopen(cfd, 'rb') as f:
+                st_c = os.fstat(f.fileno())
+                if not stat.S_ISREG(st_c.st_mode) or st_c.st_size > 1048576:
+                    sys.exit('配置文件不是常规小文件，已拒绝写入')
+                raw_bytes = f.read(1048577)
+                if len(raw_bytes) > 1048576:
+                    sys.exit('配置文件过大，已拒绝写入')
+            raw_cfg = raw_bytes.decode('utf-8')
+        trailing_nl = raw_cfg.endswith('\n') or not raw_cfg
+        lines = raw_cfg.splitlines()
+        p_idx = next((idx for idx, ln in enumerate(lines) if re.match(r'^plugins:\s*(?:\{\}\s*)?(?:#.*)?$', ln)), None)
+        if p_idx is not None and re.match(r'^plugins:\s*\{\}\s*(?:#.*)?$', lines[p_idx]):
+            lines[p_idx] = 'plugins:'
+        p_end = len(lines)
+        if p_idx is not None:
+            p_end = p_idx + 1
+            while p_end < len(lines) and (lines[p_end].startswith(' ') or not lines[p_end].strip() or lines[p_end].lstrip().startswith('#')):
+                p_end += 1
+        start = next(
+            (idx for idx in range((p_idx + 1) if p_idx is not None else 0, p_end) if re.match(r'^  web_search:\s*(?:\{\}\s*)?(?:#.*)?$', lines[idx])),
+            None,
+        )
+        if start is not None and re.match(r'^  web_search:\s*\{\}\s*(?:#.*)?$', lines[start]):
+            lines[start] = '  web_search:'
+        if start is None:
+            if p_idx is None:
+                if lines and lines[-1].strip():
+                    lines.append('')
+                lines.extend(['plugins:', '  web_search:'])
+                start = len(lines) - 1
+            else:
+                lines.insert(p_idx + 1, '  web_search:')
+                start = p_idx + 1
+        end = start + 1
+        while end < len(lines) and (lines[end].startswith('    ') or not lines[end].strip() or lines[end].lstrip().startswith('#')):
+            end += 1
+        for field, key in ok_keys.items():
+            qkey = "'" + key.replace("'", "''") + "'"
+            for i in range(start + 1, end):
+                if re.match(rf'^    {re.escape(field)}:\s*', lines[i]):
+                    lines[i] = f'    {field}: {qkey}'
+                    break
+            else:
+                ins = end
+                while ins > start + 1 and (not lines[ins - 1].strip() or lines[ins - 1].lstrip().startswith('#')):
+                    ins -= 1
+                lines.insert(ins, f'    {field}: {qkey}')
+                end += 1
+        if file_existed:
+            bname = f'config.before-keys-{time.strftime("%Y%m%d-%H%M%S")}-{os.getpid()}.yaml'
+            b_abs = os.path.abspath(backup_dir)
+            b_parts = [p for p in b_abs.split('/') if p]
+            if not b_parts or os.path.islink(b_abs):
+                sys.exit('备份目录路径异常（含符号链接），已拒绝写入')
+            cur_p = '/'
+            for comp in b_parts:
+                cur_p = os.path.join(cur_p, comp)
+                if os.path.islink(cur_p):
+                    sys.exit('备份目录路径异常（含符号链接），已拒绝写入')
+                if not os.path.exists(cur_p):
+                    os.mkdir(cur_p, 0o700 if cur_p == b_abs else 0o755)
+            backup = os.path.join(b_abs, bname)
+            bdfd, bleaf = _open_parent_dir_nofollow(backup)
+            try:
+                st_bd = os.fstat(bdfd)
+                if not stat.S_ISDIR(st_bd.st_mode):
+                    sys.exit('备份目录不是常规目录，已拒绝写入')
+                os.fchmod(bdfd, 0o700)
+                bfd = os.open(bleaf, os.O_WRONLY | os.O_CREAT | os.O_EXCL | getattr(os, 'O_NOFOLLOW', 0), 0o600, dir_fd=bdfd)
+                with os.fdopen(bfd, 'w', encoding='utf-8') as bf:
+                    os.fchmod(bf.fileno(), 0o600)
+                    bf.write(raw_cfg)
+                old_baks = []
+                for fn in os.listdir(bdfd):
+                    if fn.startswith('config.before-keys-') and fn.endswith('.yaml'):
+                        try:
+                            st_bk = os.stat(fn, dir_fd=bdfd, follow_symlinks=False)
+                            if stat.S_ISREG(st_bk.st_mode):
+                                old_baks.append((st_bk.st_mtime_ns, fn))
+                        except OSError:
+                            pass
+                old_baks.sort(reverse=True)
+                for _ts, fn in old_baks[5:]:
+                    try:
+                        os.unlink(fn, dir_fd=bdfd)
+                    except OSError:
+                        pass
+            finally:
+                os.close(bdfd)
+        pw = pwd.getpwnam(owner_user) if owner_user else None
+        tmp_leaf = f'.{leaf}.{os.getpid()}.tmp'
+        created = False
+        try:
+            try:
+                st_leaf = os.stat(leaf, dir_fd=dfd, follow_symlinks=False)
+                if not stat.S_ISREG(st_leaf.st_mode):
+                    sys.exit('配置文件路径异常（符号链接），已拒绝写入')
+            except FileNotFoundError:
+                pass
+            try:
+                st_tmp = os.stat(tmp_leaf, dir_fd=dfd, follow_symlinks=False)
+                if not stat.S_ISDIR(st_tmp.st_mode):
+                    os.unlink(tmp_leaf, dir_fd=dfd)
+            except FileNotFoundError:
+                pass
+            fd = os.open(tmp_leaf, os.O_WRONLY | os.O_CREAT | os.O_EXCL | getattr(os, 'O_NOFOLLOW', 0), 0o600, dir_fd=dfd)
+            created = True
+            if pw is not None and os.geteuid() == 0:
+                os.fchown(fd, pw.pw_uid, pw.pw_gid)
+            os.fchmod(fd, 0o600)
+            with os.fdopen(fd, 'w', encoding='utf-8') as tf:
+                tf.write('\n'.join(lines) + ('\n' if (trailing_nl or lines) else ''))
+                tf.flush()
+                os.fsync(tf.fileno())
+            try:
+                st_leaf2 = os.stat(leaf, dir_fd=dfd, follow_symlinks=False)
+                if not stat.S_ISREG(st_leaf2.st_mode):
+                    sys.exit('配置文件路径异常（符号链接），已拒绝写入')
+            except FileNotFoundError:
+                pass
+            os.replace(tmp_leaf, leaf, src_dir_fd=dfd, dst_dir_fd=dfd)
+            created = False
+        finally:
+            if created:
+                try:
+                    os.unlink(tmp_leaf, dir_fd=dfd)
+                except OSError:
+                    pass
+    finally:
+        os.close(dfd)
+
+
+def main():
+    if os.geteuid() != 0:
+        sys.exit('请使用 sudo 运行此脚本（sudo /usr/local/sbin/thinksmart-set-search-keys）')
+    metaso, amap = (sys.stdin.readline().strip(), sys.stdin.readline().strip())
+    ok_keys = {}
+    for name, field, key, check in (('秘塔', 'metaso_key', metaso, check_metaso), ('高德', 'amap_key', amap, check_amap)):
+        if not key:
+            print(f'{name}：没输入，保持原样')
+            continue
+        if not re.fullmatch(r'[\x21-\x7e]{8,200}', key):
+            print(f'{name}：格式不对（有空格或中文？），没保存')
+            continue
+        good, info = check(key)
+        print(f'{name}：{"验证通过" if good else "验证失败"}（{info}）' + ('' if good else '，没保存'))
+        if good:
+            ok_keys[field] = key
+    if not ok_keys:
+        sys.exit(0)
+    update_config_keys(C, ok_keys)
+    print('已写入小麦的私有配置，正在重启小麦后台（约 15 秒）…')
+    pw = pwd.getpwnam('ubuntu')
+    rdir = f'/run/user/{pw.pw_uid}'
+    env = dict(os.environ, XDG_RUNTIME_DIR=rdir, DBUS_SESSION_BUS_ADDRESS=f'unix:path={rdir}/bus')
+    res = subprocess.run(
+        ['/bin/systemctl', '--user', 'restart', 'xiaozhi-hub'],
+        user=pw.pw_uid,
+        group=pw.pw_gid,
+        extra_groups=[pw.pw_gid],
+        env=env,
+        capture_output=True,
+        text=True,
+        timeout=45,
+        check=False,
+    )
+    if res.returncode != 0:
+        print(f'提示：配置已保存，但重启 xiaozhi-hub 返回 {res.returncode}（可稍后在设备端重启生效）', file=sys.stderr)
+    else:
+        print('完成。')
+
+
+if __name__ == '__main__':
+    main()

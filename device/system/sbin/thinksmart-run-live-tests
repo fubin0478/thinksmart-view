@@ -1,0 +1,67 @@
+#!/bin/bash
+# 2026-11-06 Claude: run the regression suites against the LIVE files.
+# The suites under /var/tmp load their own copies of the modules (snapshots from 11-04/11-05), so running
+# them in place only tests old code. This copies each suite to a scratch dir, drops the live files in, runs it.
+# Each run uses a private temporary directory; no service is touched.
+set -euo pipefail
+WORK=$(mktemp -d /tmp/thinksmart-live-tests.XXXXXX)
+cleanup(){ rm -rf -- "$WORK"; }
+trap cleanup EXIT
+cd "$WORK"
+PY=/opt/thinksmart-addons/venv/bin/python; B=/usr/local/bin
+cp -a /var/tmp/thinksmart-traffic-20261105 /var/tmp/thinksmart-recheck-20261104 /var/tmp/codex-audit-20261104-round2 /var/tmp/thinksmart-slider-20261104 .
+cp $B/thinksmart-monitor.py thinksmart-traffic-20261105/monitor.py
+for f in study intercom; do cp $B/thinksmart-$f.py thinksmart-recheck-20261104/$f.py; cp $B/thinksmart-$f.py thinksmart-recheck-20261104/thinksmart-$f.py; done
+cp $B/thinksmart-monitor.py thinksmart-recheck-20261104/monitor.py
+cp $B/idle-blanker.py $B/thinksmart-airplay.py $B/thinksmart-qqmusic.py codex-audit-20261104-round2/
+cp $B/idle-blanker.py $B/thinksmart-monitor.py $B/thinksmart_display.py $B/vcnl4200-proximity-daemon.py thinksmart-slider-20261104/
+for d in thinksmart-traffic-20261105 thinksmart-recheck-20261104 codex-audit-20261104-round2; do cp $B/thinksmart_display.py $d/; done
+# Since 11-05 the automatic curve shares the manual 0% floor (MANUAL_MIN 1400); the 11-04 test still expects 2000.
+sed -i "s/self.assertEqual(values\[0\],2000)/self.assertEqual(values[0],1400)/" thinksmart-slider-20261104/test_display.py
+# Isolate test_round2 IdleTests from live sysfs backlight, ALS, and mode files.
+$PY - <<'PY'
+from pathlib import Path
+p = Path('codex-audit-20261104-round2/test_round2.py')
+s = p.read_text()
+needle = "        self.mod.HINT_PATH = self.root/'hint'\n"
+extra = (
+    "        self.mod.BACKLIGHT_PATH = str(self.root/'backlight')\n"
+    "        self.mod.USER_BRIGHTNESS_PATH = self.root/'user_brightness'\n"
+    "        self.mod.MODE_PATH = self.root/'mode.json'\n"
+    "        self.mod.read_als = lambda: None\n"
+)
+assert needle in s, 'IdleTests.setUp needle missing'
+p.write_text(s.replace(needle, needle + extra, 1))
+PY
+# 2026-11-11 Claude: test_study.py predates round 109 and does not redirect FOCUS_PATH, so it read (and, as root,
+# rewrote) the live /var/lib/thinksmart-study/focus.json, failing whenever a real focus with study was running.
+$PY - <<'PY'
+from pathlib import Path
+p = Path('thinksmart-recheck-20261104/test_study.py')
+s = p.read_text()
+needle = "m.STATE=self.p;"
+assert s.count(needle) == 1, 'test_study setUp needle missing'
+p.write_text(s.replace(needle, needle + "m.FOCUS_PATH=self.p/'focus.json';", 1))
+PY
+mkdir final-audit
+cp /opt/thinksmart-addons/test_final_audit.py final-audit/
+run(){
+    local d=$1 rc; shift
+    local logfile="$WORK/$d.log"
+    echo "== $d"
+    if (cd "$WORK/$d" && PYTHONDONTWRITEBYTECODE=1 timeout 300 "$@") >"$logfile" 2>&1; then
+        tail -3 "$logfile"
+    else
+        rc=$?
+        cat "$logfile"
+        echo "FAILED: $d (exit $rc)" >&2
+        return "$rc"
+    fi
+}
+result=0
+run thinksmart-traffic-20261105 $PY -m unittest test_monitor test_traffic || result=1
+run thinksmart-recheck-20261104 $PY -m unittest test_monitor test_study test_study_extra || result=1
+run codex-audit-20261104-round2 env TEST_SOURCE_DIR="$WORK/codex-audit-20261104-round2" $PY -m unittest test_round2 || result=1
+run thinksmart-slider-20261104 $PY -m unittest test_display test_http test_preview || result=1
+run final-audit $PY test_final_audit.py || result=1
+exit "$result"

@@ -1,0 +1,10 @@
+ThinkSmart View Unified System Repository
+=========================================
+
+- Top-level ThinkSmart View integration, services (`home`, `qqmusic`, `monitor`, `intercom`,
+  `study`, `tutor`, `admin`, `kiosk`, `system`, `configs`, `tests`) are licensed under the
+  GNU General Public License v3.0 (GPL-3.0-or-later).
+- `device/xiaozhi-client/` and `device/xiaozhi-hub/` incorporate MIT-licensed components;
+  their original MIT copyright and permission notices are preserved in
+  `device/xiaozhi-client/LICENSE` and `device/xiaozhi-hub/LICENSE`.
+- `device/vendor/lunar_python/` retains its original MIT license.

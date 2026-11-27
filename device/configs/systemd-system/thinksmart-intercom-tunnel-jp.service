@@ -1,0 +1,20 @@
+[Unit]
+Description=ThinkSmart View Intercom Reverse SSH Tunnel (GreenCloud JP)
+After=network-online.target mihomo.service thinksmart-intercom.service
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=root
+ExecStart=/usr/local/bin/thinksmart-intercom-tunnel-jp.sh
+Restart=always
+RestartSec=5
+NoNewPrivileges=yes
+PrivateTmp=yes
+MemoryHigh=32M
+MemoryMax=64M
+TasksMax=32
+
+TimeoutStopSec=10
+[Install]
+WantedBy=multi-user.target

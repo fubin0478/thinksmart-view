@@ -1,0 +1,217 @@
+"""The device around the conversation: the screen and the hardware keys.
+
+The system's screen blanker (thinksmart-ubuntu-image/screen/idle-blanker.py) owns the backlight; we only
+tell it when a conversation keeps the screen on, the sleep hours, the user's brightness and screen-off (HINT_PATH). It already wakes on any input
+device, the keys and the switch included; the wake word is the one thing it can't see. The volume keys and the mic-mute
+switch are read straight from their input devices (the service binds /dev/input read-only).
+"""
+import array
+import asyncio
+import fcntl
+import json
+import logging
+import os
+import struct
+import time
+from pathlib import Path
+
+log = logging.getLogger(__name__)
+
+HINT_PATH = Path(os.environ.get('XDG_RUNTIME_DIR', '/run/user/1000')) / 'thinksmart-screen.json'
+SCREEN_OFF_MINUTES = (1, 3, 5, 10, 30)   # the settings page's choices; 5 by default (config.py)
+# the blanker's MANUAL_MIN (0%), MAX_BRIGHTNESS (100%) and DIM_BRIGHTNESS (sleep hours) on the 0-100 scale
+DIM_LEVEL = round((1600 - 1400) * 100 / (4095 - 1400))
+
+EV_KEY, EV_SW = 0x01, 0x05
+KEY_VOLUMEDOWN, KEY_VOLUMEUP = 114, 115
+SW_MIC = 4          # gpio-keys "Mic Mute" switch; the device tree reuses SW_MICROPHONE_INSERT: 1 = mic on
+VOLUME_STEP = 5
+EVENT = struct.Struct('qqHHi')   # struct input_event on 64-bit: timeval, type, code, value
+EVIOCGSW = (2 << 30) | (8 << 16) | (ord('E') << 8) | 0x1b
+
+
+def normalize_screen_off(setting, changes=None):
+    """A complete, valid screen-off setting: {'enabled': bool, 'minutes': one of SCREEN_OFF_MINUTES}.
+    Raises ValueError for other minutes."""
+    s = {'enabled': True, 'minutes': 5}
+    s.update({k: v for k, v in (setting or {}).items() if k in s})
+    s.update({k: v for k, v in (changes or {}).items() if k in s and v is not None})
+    s['enabled'] = bool(s['enabled'])
+    if isinstance(s['minutes'], bool) or s['minutes'] not in SCREEN_OFF_MINUTES:
+        raise ValueError(f'minutes must be one of {SCREEN_OFF_MINUTES}, got {s["minutes"]!r}')
+    s['minutes'] = int(s['minutes'])
+    return s
+
+
+class Screen:
+    """Hints for the blanker: hold() while a conversation goes on, release() when it ends, dim()
+    for the sleep hours, brightness() for the user's level, blank_after() for the user's
+    screen-off. A new seq is activity (wakes the screen); a setting change alone is not."""
+
+    def __init__(self):
+        self.held = None
+        self.ringing = False         # an alarm rings: on until it stops, whatever the conversation does
+        self.dimmed = False
+        self.level = 100             # the user's 0-100
+        self.idle = 300              # the user's screen-off in seconds, 0: never
+        self._seq = time.time_ns()   # unique across client restarts
+
+    def hold(self):
+        if self.held is not True:
+            self.held = True
+            self._write(activity=True)
+
+    def release(self):
+        if self.held is not False:
+            self.held = False
+            self._write(activity=True)
+
+    def alarm(self, on):
+        """An alarm rings: light the screen (it may be blank) and keep it on; when it stops, blank after
+        the user's screen-off."""
+        if self.ringing != on:
+            self.ringing = on
+            self._write(activity=True)
+
+    def poke(self):
+        """Wake the screen now (a wake word, a report); it blanks after the user's screen-off."""
+        self._write(activity=True)
+
+    def dim(self, on):
+        if self.dimmed != on:
+            self.dimmed = on
+            self._write(activity=False)
+
+    def brightness(self, level, force=False):
+        if force or self.level != level:
+            self.level = level
+            self._write(activity=False)
+
+    def blank_after(self, seconds):
+        if self.idle != seconds:
+            self.idle = seconds
+            self._write(activity=False)
+
+    def _write(self, activity):
+        ext_seq = None
+        try:
+            if HINT_PATH.is_file() and not HINT_PATH.is_symlink():
+                cur = json.loads(HINT_PATH.read_text(encoding='utf-8'))
+                if isinstance(cur, dict) and type(cur.get('seq')) is int:
+                    ext_seq = cur['seq']
+        except (OSError, ValueError, TypeError):
+            pass
+        if activity:
+            self._seq = max(self._seq + 1, time.time_ns(), (ext_seq + 1) if ext_seq is not None else 0)
+        elif ext_seq is not None:
+            self._seq = ext_seq
+        ext_hold = (
+            (HINT_PATH.parent / 'uxplay-mirroring-active').exists()
+            or (HINT_PATH.parent / 'intercom-call-active').exists()
+        )
+        hint = {'hold': bool(self.held or self.ringing or ext_hold), 'dim': self.dimmed, 'seq': self._seq,
+                'brightness': self.level, 'idle': self.idle}
+        if not hint['hold'] and self.idle:
+            hint['after'] = self.idle   # for a blanker older than "idle": the time after a conversation
+        tmp = HINT_PATH.with_name(f'.thinksmart-screen.{os.getpid()}.{time.monotonic_ns()}.tmp')
+        try:
+            HINT_PATH.parent.mkdir(parents=True, exist_ok=True)
+            tmp.write_text(json.dumps(hint), encoding='utf-8')
+            tmp.replace(HINT_PATH)
+        except OSError as e:
+            try:
+                tmp.unlink()
+            except OSError:
+                pass
+            log.warning('screen hint not written: %s', e)
+
+
+def input_device(name):
+    """/dev/input/eventN of the input device called `name` (from /proc/bus/input/devices)."""
+    try:
+        blocks = Path('/proc/bus/input/devices').read_text().split('\n\n')
+    except OSError:
+        return None
+    for block in blocks:
+        if f'N: Name="{name}"' in block:
+            for word in block.split():
+                if word.startswith('event'):
+                    return f'/dev/input/{word}'
+    return None
+
+
+class Keys:
+    """Volume up (gpio-keys), volume down (pm8941_resin) and the mic-mute switch (gpio-keys).
+    on_step(±VOLUME_STEP) is a coroutine: the client knows whether an alarm is ringing (the keys then
+    change only that ring's volume)."""
+
+    def __init__(self, on_step, on_mic):
+        self.on_step = on_step
+        self.on_mic = on_mic
+        self.mic_on = True
+        self._fds = []
+
+    def start(self):
+        loop = asyncio.get_running_loop()
+        for name in ('gpio-keys', 'pm8941_resin'):
+            path = input_device(name)
+            if not path:
+                log.warning('input device %s not found', name)
+                continue
+            try:
+                fd = os.open(path, os.O_RDONLY | os.O_NONBLOCK)
+            except OSError as e:
+                log.warning('cannot open %s (%s): %s', path, name, e)
+                continue
+            self._fds.append(fd)
+            loop.add_reader(fd, self._read, fd)
+            if name == 'gpio-keys':
+                self.mic_on = self._switch(fd, SW_MIC)
+        log.info('keys: %d input devices, mic %s', len(self._fds), 'on' if self.mic_on else 'off')
+
+    @staticmethod
+    def _switch(fd, code):
+        bits = array.array('B', [0] * 8)
+        try:
+            fcntl.ioctl(fd, EVIOCGSW, bits)
+        except OSError:
+            return True
+        return bool(int.from_bytes(bytes(bits), 'little') >> code & 1)
+
+    def _read(self, fd):
+        try:
+            data = os.read(fd, EVENT.size * 32)
+        except BlockingIOError:
+            return
+        except OSError as e:
+            log.warning('input device read failed (fd %s): %s', fd, e)
+            try:
+                asyncio.get_running_loop().remove_reader(fd)
+            except Exception:
+                pass
+            try:
+                os.close(fd)
+            except OSError:
+                pass
+            if fd in self._fds:
+                self._fds.remove(fd)
+            return
+        if not data:
+            try:
+                asyncio.get_running_loop().remove_reader(fd)
+            except Exception:
+                pass
+            try:
+                os.close(fd)
+            except OSError:
+                pass
+            if fd in self._fds:
+                self._fds.remove(fd)
+            return
+        for i in range(0, len(data) - EVENT.size + 1, EVENT.size):
+            _sec, _usec, etype, code, value = EVENT.unpack_from(data, i)
+            if etype == EV_KEY and code in (KEY_VOLUMEUP, KEY_VOLUMEDOWN) and value in (1, 2):
+                asyncio.create_task(self.on_step(VOLUME_STEP if code == KEY_VOLUMEUP else -VOLUME_STEP))
+            elif etype == EV_SW and code == SW_MIC:
+                self.mic_on = bool(value)
+                self.on_mic(self.mic_on)

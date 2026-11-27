@@ -1,0 +1,54 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+	<key>EnvironmentVariables</key>
+	<dict>
+		<key>ASR_DISABLED</key>
+		<string>1</string>
+		<key>ASR_SENSEVOICE</key>
+		<string>0</string>
+		<key>DEFAULT_VOICE</key>
+		<string>xiaohe</string>
+		<key>HOST</key>
+		<string>127.0.0.1</string>
+		<key>MLX_CACHE_LIMIT_MB</key>
+		<string>1024</string>
+		<key>PORT</key>
+		<string>8011</string>
+		<key>PYTHONUNBUFFERED</key>
+		<string>1</string>
+		<key>STREAMING_INTERVAL</key>
+		<string>0.18</string>
+		<key>TRANSLATION_ASR_MODEL_DIR</key>
+		<string>/Users/YOUR_USERNAME/thinksmart-view/mac-companion/voice-server/models/Qwen3-ASR-1.7B-8bit</string>
+		<key>TTS_IDLE_SLEEP_SECONDS</key>
+		<string>600</string>
+		<key>TTS_MODEL_DIR</key>
+		<string>/Users/YOUR_USERNAME/thinksmart-view/mac-companion/voice-server/models/Qwen3-TTS-12Hz-1.7B-Base-8bit</string>
+		<key>TTS_SPEEDUPS</key>
+		<string>1</string>
+	</dict>
+	<key>KeepAlive</key>
+	<true/>
+	<key>Label</key>
+	<string>com.thinksmart.voice-tts2</string>
+	<key>ProcessType</key>
+	<string>Interactive</string>
+	<key>ProgramArguments</key>
+	<array>
+		<string>/usr/bin/caffeinate</string>
+		<string>-s</string>
+		<string>/Users/YOUR_USERNAME/thinksmart-view/mac-companion/voice-server/.venv/bin/python</string>
+		<string>/Users/YOUR_USERNAME/thinksmart-view/mac-companion/voice-server/server.py</string>
+	</array>
+	<key>RunAtLoad</key>
+	<true/>
+	<key>StandardErrorPath</key>
+	<string>/Users/YOUR_USERNAME/Library/Logs/xiaozhi-voice/tts2.err.log</string>
+	<key>StandardOutPath</key>
+	<string>/Users/YOUR_USERNAME/Library/Logs/xiaozhi-voice/tts2.out.log</string>
+	<key>WorkingDirectory</key>
+	<string>/Users/YOUR_USERNAME/thinksmart-view/mac-companion/voice-server</string>
+</dict>
+</plist>

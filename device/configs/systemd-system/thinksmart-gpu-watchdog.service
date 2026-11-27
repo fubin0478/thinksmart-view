@@ -1,0 +1,16 @@
+[Unit]
+Description=Restart the kiosk browser after a GPU fault (screen froze after one at boot)
+Before=thinksmart-kiosk.service
+
+[Service]
+Environment=PYTHONUNBUFFERED=1 PYTHONDONTWRITEBYTECODE=1
+ExecStart=/usr/bin/python3 -B /usr/local/bin/gpu-watchdog.py
+Restart=always
+RestartSec=5
+MemoryHigh=48M
+MemoryMax=64M
+TasksMax=16
+TimeoutStopSec=5
+
+[Install]
+WantedBy=multi-user.target

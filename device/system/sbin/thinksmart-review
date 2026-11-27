@@ -1,0 +1,198 @@
+#!/usr/bin/env python3
+"""2026-11-06 Claude: what changed on this device since the last verified review.
+
+  thinksmart-review            list files changed/added/removed since the verified baseline
+  thinksmart-review diff [f]   unified diff against the baseline (all changed files, or one path)
+  thinksmart-review accept     after a review passes: make the current files the new baseline
+
+Baseline: /var/backups/thinksmart-claude-verified/ (copies + manifest.json). Private configs
+(hub data/.config.yaml, mihomo config) are hashed only, never copied or diffed.
+Workflow (user, 2026-11-06): Antigravity fixes, Claude verifies, then Claude runs `accept`.
+"""
+import difflib, glob, hashlib, json, os, shutil, stat, sys, time
+
+BASE = "/var/backups/thinksmart-claude-verified"
+PATTERNS = [
+    "/usr/local/bin/*", "/usr/local/sbin/*", "/usr/local/share/thinksmart-*/**",
+    "/etc/systemd/system/thinksmart*", "/etc/systemd/system/*.service.d/*", "/etc/systemd/system/screen-wake*",
+    "/etc/systemd/system/bt-auto-agent*", "/etc/systemd/system/display-guard.service", "/etc/systemd/user/*",
+    "/home/ubuntu/.config/systemd/user/*", "/home/ubuntu/.config/systemd/user/*.d/*", "/etc/sysctl.d/*",
+    "/etc/sudoers.d/*", "/etc/systemd/journald.conf.d/*", "/etc/udev/rules.d/*",
+    "/etc/profile.d/mihomo-proxy.sh", "/etc/thinksmart-update.conf", "/etc/wireplumber/scripts/suspend-node.lua",
+    "/home/ubuntu/.config/wireplumber/main.lua.d/51-cd18781y-alsa.lua",
+    "/home/ubuntu/.config/wireplumber/main.lua.d/99-zz-cd18781y-profile.lua",
+    # 2026-11-09 Claude: whole WirePlumber config dirs (round 89 added bluetooth.lua.d/70-bt-hifi-direct.lua unseen)
+    "/etc/wireplumber/**", "/home/ubuntu/.config/wireplumber/**",
+    "/opt/thinksmart-addons/xiaozhi-hub-overrides/**",
+    "/opt/thinksmart-addons/*.py", "/usr/local/lib/thinksmart-aec-bridge/**", "/etc/mihomo/*.yaml",
+]
+HASH_ONLY = [
+    "/home/ubuntu/xiaozhi-hub-server/main/xiaozhi-server/data/.config.yaml",
+    "/etc/mihomo/config.yaml",
+    "/etc/thinksmart-intercom/known_hosts",
+]
+PRIVATE_PREFIXES = (
+    "/etc/mihomo/",
+    "/etc/ssh/",
+    "/etc/thinksmart-intercom/",
+    "/var/lib/thinksmart-admin/",
+    "/var/lib/thinksmart-home/",
+    "/var/lib/thinksmart-monitor/",
+    "/var/lib/thinksmart-study/",
+    "/var/lib/thinksmart-tutor/",
+    "/home/ubuntu/.config/thinksmart-client/",
+    "/home/ubuntu/.local/share/thinksmart-client/",
+    "/home/ubuntu/.config/thinksmart-qqmusic/",
+    "/home/ubuntu/xiaozhi-hub-server/main/xiaozhi-server/data/",
+    "/home/ubuntu/.ssh/",
+    "/root/.ssh/",
+    "/var/backups/",
+)
+PRIVATE_EXACT = {"/etc/shadow", "/etc/gshadow", "/etc/shadow-", "/etc/gshadow-"}
+
+
+def _is_private(path: str) -> bool:
+    priv = {os.path.abspath(p) for p in HASH_ONLY} | {os.path.realpath(p) for p in HASH_ONLY} | PRIVATE_EXACT
+    ap, rp = os.path.abspath(path), os.path.realpath(path)
+    return (
+        ap in priv
+        or rp in priv
+        or any(ap.startswith(pfx) or rp.startswith(pfx) for pfx in PRIVATE_PREFIXES)
+    )
+MAXSZ = 3 * 1024 * 1024
+
+
+def _is_regular_nonlink(path: str, max_sz: int = MAXSZ) -> bool:
+    try:
+        st = os.lstat(path)
+        return stat.S_ISREG(st.st_mode) and st.st_size <= max_sz
+    except OSError:
+        return False
+
+
+def files():
+    out = set()
+    for p in PATTERNS:
+        for f in glob.glob(p, recursive=True):
+            if "__pycache__" not in f and _is_regular_nonlink(f, MAXSZ):
+                out.add(f)
+    return sorted(out | {f for f in HASH_ONLY if _is_regular_nonlink(f, 16 * 1024 * 1024)})
+
+
+def sha(f):
+    h = hashlib.sha256()
+    fd = os.open(f, os.O_RDONLY | getattr(os, "O_NOFOLLOW", 0) | getattr(os, "O_NONBLOCK", 0))
+    with os.fdopen(fd, "rb") as fh:
+        st = os.fstat(fh.fileno())
+        if not stat.S_ISREG(st.st_mode):
+            raise OSError(f"Refusing non-regular file: {f}")
+        for b in iter(lambda: fh.read(1 << 16), b""):
+            h.update(b)
+    return h.hexdigest()
+
+
+def manifest():
+    try:
+        with open(f"{BASE}/manifest.json", encoding="utf-8") as fh:
+            return json.load(fh)
+    except Exception:
+        return None
+
+
+def status(m):
+    cur = {f: sha(f) for f in files()}
+    old = m["files"]
+    changed = [f for f in cur if f in old and cur[f] != old[f]]
+    added = [f for f in cur if f not in old]
+    removed = [f for f in old if f not in cur]
+    return cur, changed, added, removed
+
+
+def accept():
+    if os.geteuid() != 0:
+        print("thinksmart-review accept: must run as root", file=sys.stderr)
+        sys.exit(1)
+    cur = {f: sha(f) for f in files()}
+    tmp = BASE + ".new"
+    old_dir = BASE + ".old"
+    for d in (tmp, old_dir):
+        if os.path.lexists(d):
+            shutil.rmtree(d) if os.path.isdir(d) and not os.path.islink(d) else os.unlink(d)
+    os.mkdir(tmp, 0o700)
+    os.chmod(tmp, 0o700)
+    os.mkdir(tmp + "/tree", 0o700)
+    for f in cur:
+        if _is_private(f):
+            continue
+        dst = tmp + "/tree" + f
+        os.makedirs(os.path.dirname(dst), mode=0o700, exist_ok=True)
+        shutil.copy2(f, dst, follow_symlinks=False)
+    with open(tmp + "/manifest.json", "w", encoding="utf-8") as fh:
+        json.dump({"accepted": time.strftime("%Y-%m-%d %H:%M:%S"), "by": os.environ.get("REVIEWER", "claude"),
+                   "files": cur}, fh, indent=0)
+    os.chmod(tmp + "/manifest.json", 0o600)
+    if os.path.lexists(BASE):
+        os.rename(BASE, old_dir)
+    try:
+        os.rename(tmp, BASE)
+        os.chmod(BASE, 0o700)
+    except BaseException:
+        if os.path.lexists(old_dir) and not os.path.lexists(BASE):
+            os.rename(old_dir, BASE)
+        raise
+    if os.path.isdir(old_dir):
+        shutil.rmtree(old_dir)
+    print(f"baseline accepted: {len(cur)} files")
+
+
+def main():
+    args = sys.argv[1:]
+    if args and (
+        args[0] not in ("accept", "diff")
+        or (args[0] == "accept" and len(args) > 1)
+        or (args[0] == "diff" and len(args) > 2)
+    ):
+        print("usage: thinksmart-review [diff [file] | accept]", file=sys.stderr)
+        sys.exit(2)
+    if args == ["accept"]:
+        return accept()
+    m = manifest()
+    if not m:
+        print("no baseline yet: run  thinksmart-review accept")
+        return
+    cur, changed, added, removed = status(m)
+    if args[:1] == ["diff"]:
+        targets = [os.path.abspath(args[1])] if len(args) > 1 else changed + added
+        for f in targets:
+            if os.path.islink(f):
+                print(f"## {f}: symlink skipped")
+                continue
+            if _is_private(f):
+                print(f"## {f}: private file, {'hash differs' if f in changed else 'not shown'}")
+                continue
+            bf = BASE + "/tree" + f
+            if _is_regular_nonlink(bf, MAXSZ):
+                bfd = os.open(bf, os.O_RDONLY | getattr(os, "O_NOFOLLOW", 0) | getattr(os, "O_NONBLOCK", 0))
+                with os.fdopen(bfd, encoding="utf-8", errors="replace") as fh:
+                    old = fh.read(MAXSZ + 1).splitlines(True)
+            else:
+                old = []
+            if _is_regular_nonlink(f, MAXSZ):
+                lfd = os.open(f, os.O_RDONLY | getattr(os, "O_NOFOLLOW", 0) | getattr(os, "O_NONBLOCK", 0))
+                with os.fdopen(lfd, encoding="utf-8", errors="replace") as fh:
+                    new = fh.read(MAXSZ + 1).splitlines(True)
+            else:
+                new = []
+            sys.stdout.writelines(difflib.unified_diff(old, new, "baseline" + f, f, n=2))
+        return
+    print(f"baseline {m['accepted']} by {m.get('by')} ({len(m['files'])} files)")
+    for tag, lst in (("CHANGED", changed), ("ADDED", added), ("REMOVED", removed)):
+        for f in lst:
+            mt = time.strftime("%m-%d %H:%M", time.localtime(os.path.getmtime(f))) if os.path.exists(f) else "-"
+            print(f"{tag:8} {mt}  {f}")
+    if not (changed or added or removed):
+        print("no changes since baseline")
+
+
+if __name__ == "__main__":
+    main()

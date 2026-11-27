@@ -1,0 +1,153 @@
+#!/opt/thinksmart-addons/venv/bin/python -B
+"""ThinkSmart View system backup, inspect, and restore CLI (shares format with thinksmart-admin)."""
+import sys
+
+sys.dont_write_bytecode = True
+
+import argparse
+import importlib.util
+import json
+import os
+import pwd
+import shutil
+from pathlib import Path
+
+
+def _load_admin_module():
+    candidates = [
+        os.environ.get('THINKSMART_ADMIN_PY', ''),
+        '/usr/local/bin/thinksmart-admin.py',
+        str(Path(__file__).resolve().parents[2] / 'admin' / 'thinksmart-admin.py'),
+    ]
+    for cand in candidates:
+        if cand and Path(cand).is_file():
+            spec = importlib.util.spec_from_file_location('ts_admin_backup_shared', cand)
+            mod = importlib.util.module_from_spec(spec)
+            spec.loader.exec_module(mod)
+            return mod
+    raise FileNotFoundError('Cannot locate thinksmart-admin.py')
+
+
+def _chown_ubuntu_if_root(adm) -> None:
+    if os.geteuid() != 0:
+        return
+    try:
+        pw = pwd.getpwnam('ubuntu')
+    except KeyError:
+        return
+    uid, gid = pw.pw_uid, pw.pw_gid
+    roots = {
+        adm.STATE_DIR,
+        adm.HOME_STATE,
+        adm.QQ_CFG_DIR,
+        adm.STUDY_STATE,
+        adm.TUTOR_STATE,
+        adm.MONITOR_STATE,
+        adm.CLIENT_CFG.parent,
+        adm.CLIENT_ALARMS_PATH.parent,
+        adm.HUB_DIR / 'data',
+    }
+    for sp in adm._backup_specs():
+        t: Path = sp['target']
+        if t.exists() and not t.is_symlink():
+            shutil.chown(t, uid, gid)
+        if sp.get('kind') == 'sqlite_db':
+            for suf in ('-wal', '-shm'):
+                sp_side = Path(str(t) + suf)
+                if sp_side.exists() and not sp_side.is_symlink():
+                    shutil.chown(sp_side, uid, gid)
+    for r in roots:
+        if r.exists() and not r.is_symlink():
+            shutil.chown(r, uid, gid)
+    rb_dir = getattr(adm, 'RESTORE_BACKUP_DIR', None)
+    if rb_dir is not None and rb_dir.is_dir() and not rb_dir.is_symlink():
+        shutil.chown(rb_dir, uid, gid)
+        for p in rb_dir.rglob('*'):
+            if not p.is_symlink():
+                shutil.chown(p, uid, gid)
+
+
+def main() -> int:
+    ap = argparse.ArgumentParser(description='ThinkSmart View 配置备份导出、校验与恢复工具')
+    sub = ap.add_subparsers(dest='cmd', required=True)
+
+    p_info = sub.add_parser('info', help='查看可备份配置清单')
+    p_info.add_argument('--json', action='store_true', help='以 JSON 格式输出')
+
+    p_exp = sub.add_parser('export', help='导出系统配置备份包 (.tar.gz)')
+    p_exp.add_argument('--mode', choices=('sanitized', 'full'), default='sanitized',
+                       help='sanitized=脱敏配置包（不含密钥/会话），full=完整迁移备份（含密钥/记录）')
+    p_exp.add_argument('--out', required=True, help='导出压缩包路径')
+
+    p_ins = sub.add_parser('inspect', help='校验备份包完整性并查看清单')
+    p_ins.add_argument('file', help='备份包路径 (.tar.gz)')
+
+    p_res = sub.add_parser('restore', help='校验并恢复备份包（自动先备份现有配置）')
+    p_res.add_argument('file', help='备份包路径 (.tar.gz)')
+    p_res.add_argument('--no-preserve-secrets', action='store_true',
+                       help='恢复脱敏包时不保留设备现有 API 密钥（默认保留）')
+
+    args = ap.parse_args()
+    adm = _load_admin_module()
+
+    if args.cmd == 'info':
+        res = adm.backup_info()
+        if args.json:
+            print(json.dumps(res, ensure_ascii=False, indent=2))
+        else:
+            print(f"格式: {res['format']} · 文件数: {res['total_files']} · 大小: {adm.fmt_size(res['total_bytes'])}")
+            for sec in res['sections']:
+                print(f"  - {sec['module']}: {sec['files']} 个文件 ({', '.join(sec['labels'])})")
+        return 0
+
+    if args.cmd == 'export':
+        out_p = Path(args.out)
+        if out_p.is_symlink():
+            print('拒绝写入符号链接目标', file=sys.stderr)
+            return 2
+        out_p.parent.mkdir(parents=True, exist_ok=True)
+        blob, manifest = adm.build_backup_archive(args.mode)
+        _chown_ubuntu_if_root(adm)
+        tmp = out_p.with_name(f'.{out_p.name}.{os.getpid()}.tmp')
+        fd = os.open(tmp, os.O_WRONLY | os.O_CREAT | os.O_EXCL, 0o600 if args.mode == 'full' else 0o644)
+        try:
+            with os.fdopen(fd, 'wb') as f:
+                f.write(blob)
+                f.flush()
+                os.fsync(f.fileno())
+            os.replace(tmp, out_p)
+        except BaseException:
+            if tmp.exists():
+                tmp.unlink(missing_ok=True)
+            raise
+        print(json.dumps({
+            'ok': True,
+            'mode': args.mode,
+            'out': str(out_p),
+            'bytes': len(blob),
+            'file_count': manifest['file_count'],
+        }, ensure_ascii=False))
+        return 0
+
+    if args.cmd == 'inspect':
+        raw = Path(args.file).read_bytes()
+        manifest, _ = adm.inspect_backup_archive(raw)
+        print(json.dumps(manifest, ensure_ascii=False, indent=2))
+        return 0
+
+    if args.cmd == 'restore':
+        raw = Path(args.file).read_bytes()
+        res = adm.restore_backup_archive(raw, preserve_secrets=(not args.no_preserve_secrets))
+        _chown_ubuntu_if_root(adm)
+        print(json.dumps(res, ensure_ascii=False))
+        return 0
+
+    return 1
+
+
+if __name__ == '__main__':
+    try:
+        raise SystemExit(main())
+    except Exception as exc:
+        print(json.dumps({'ok': False, 'error': str(exc)}, ensure_ascii=False), file=sys.stderr)
+        raise SystemExit(1)

@@ -1,0 +1,178 @@
+--- apq8053-lenovo-cd-18781y.stock.dts
++++ apq8053-lenovo-cd-18781y.camera.dts
+@@ -786,6 +786,7 @@
+ 						regulator-min-microvolt = <0xee098>;
+ 						regulator-max-microvolt = <0x12b128>;
+ 						regulator-always-on;
++						phandle = <0xd2>;
+ 					};
+ 
+ 					l3 {
+@@ -809,6 +810,7 @@
+ 					l6 {
+ 						regulator-min-microvolt = <0x1b7740>;
+ 						regulator-max-microvolt = <0x1b7740>;
++						regulator-always-on;
+ 						phandle = <0x45>;
+ 					};
+ 
+@@ -861,6 +863,8 @@
+ 					l17 {
+ 						regulator-min-microvolt = <0x2b7cd0>;
+ 						regulator-max-microvolt = <0x2b7cd0>;
++						regulator-always-on;
++						phandle = <0xd1>;
+ 					};
+ 
+ 					l19 {
+@@ -1169,6 +1173,7 @@
+ 				function = "cci_i2c";
+ 				drive-strength = <0x02>;
+ 				bias-disable;
++				phandle = <0xcb>;
+ 			};
+ 
+ 			cci1-default-state {
+@@ -1176,6 +1181,7 @@
+ 				function = "cci_i2c";
+ 				drive-strength = <0x02>;
+ 				bias-disable;
++				phandle = <0xcc>;
+ 			};
+ 
+ 			camss-mclk0-default-state {
+@@ -1183,6 +1189,7 @@
+ 				function = "cam_mclk";
+ 				drive-strength = <0x02>;
+ 				bias-disable;
++				phandle = <0xcd>;
+ 			};
+ 
+ 			camss-mclk1-default-state {
+@@ -2106,11 +2113,23 @@
+ 			interconnect-names = "cam_vfe0_mem\0cam_vfe1_mem\0cam_ahb";
+ 			power-domains = <0x24 0x08 0x24 0x09>;
+ 			power-domain-names = "vfe0\0vfe1";
+-			status = "disabled";
++			vdda-supply = <0x30>;
++			status = "okay";
+ 
+ 			ports {
+ 				#address-cells = <0x01>;
+ 				#size-cells = <0x00>;
++
++				port@0 {
++					reg = <0x00>;
++
++					endpoint {
++						clock-lanes = <0x07>;
++						data-lanes = <0x00 0x01>;
++						remote-endpoint = <0xca>;
++						phandle = <0xd0>;
++					};
++				};
+ 			};
+ 		};
+ 
+@@ -2118,19 +2137,43 @@
+ 			compatible = "qcom,msm8974-cci";
+ 			reg = <0x1b0c000 0x1000>;
+ 			interrupts = <0x00 0x32 0x01>;
+-			clocks = <0x24 0x70 0x24 0x49 0x24 0x4a 0x24 0x48>;
+-			clock-names = "camss_top_ahb\0cci_ahb\0cci\0camss_ahb";
+-			assigned-clocks = <0x24 0x49 0x24 0x4a>;
+-			assigned-clock-rates = <0x4c4b400 0x124f800>;
++			clocks = <0x24 0x70 0x24 0x49 0x24 0x4a 0x24 0x48 0x24 0x6b>;
++			clock-names = "camss_top_ahb\0cci_ahb\0cci\0camss_ahb\0mclk0";
++			assigned-clocks = <0x24 0x49 0x24 0x4a 0x24 0x6b>;
++			assigned-clock-rates = <0x4c4b400 0x124f800 0x16e3600>;
++			pinctrl-names = "default";
++			pinctrl-0 = <0xcb 0xcc 0xcd>;
+ 			#address-cells = <0x01>;
+ 			#size-cells = <0x00>;
+-			status = "disabled";
++			status = "okay";
+ 
+ 			i2c-bus@0 {
+ 				reg = <0x00>;
+ 				clock-frequency = <0x61a80>;
+ 				#address-cells = <0x01>;
+ 				#size-cells = <0x00>;
++
++				camera-sensor@37 {
++					compatible = "ovti,ov5695";
++					reg = <0x37>;
++					clocks = <0x24 0x6b>;
++					clock-names = "xvclk";
++					clock-frequency = <0x16e3600>;
++					reset-gpios = <0x38 0x28 0x01>;
++					avdd-supply = <0xce>;
++					dvdd-supply = <0xcf>;
++					dovdd-supply = <0x45>;
++
++					port {
++
++						endpoint {
++							clock-lanes = <0x01>;
++							data-lanes = <0x00 0x01>;
++							remote-endpoint = <0xd0>;
++							phandle = <0xca>;
++						};
++					};
++				};
+ 			};
+ 
+ 			i2c-bus@1 {
+@@ -3942,4 +3985,52 @@
+ 		post-power-on-delay-ms = <0x64>;
+ 		phandle = <0x7c>;
+ 	};
++
++	cam-vana-regulator {
++		compatible = "regulator-fixed";
++		regulator-name = "cam_vana_ext";
++		regulator-min-microvolt = <0x2ab980>;
++		regulator-max-microvolt = <0x2ab980>;
++		gpio = <0x38 0x77 0x00>;
++		enable-active-high;
++		regulator-always-on;
++		regulator-boot-on;
++		vin-supply = <0xd1>;
++		phandle = <0xce>;
++	};
++
++	cam-vdig-regulator {
++		compatible = "regulator-fixed";
++		regulator-name = "cam_vdig_ext";
++		regulator-min-microvolt = <0x124f80>;
++		regulator-max-microvolt = <0x124f80>;
++		gpio = <0x38 0x76 0x00>;
++		enable-active-high;
++		regulator-always-on;
++		regulator-boot-on;
++		vin-supply = <0xd2>;
++		phandle = <0xcf>;
++	};
++
++	cam-vdig2-regulator {
++		compatible = "regulator-fixed";
++		regulator-name = "cam_vdig2_ext";
++		regulator-min-microvolt = <0x124f80>;
++		regulator-max-microvolt = <0x124f80>;
++		gpio = <0x38 0x86 0x00>;
++		enable-active-high;
++		regulator-always-on;
++		regulator-boot-on;
++		vin-supply = <0xd2>;
++	};
++
++	cam-standby-regulator {
++		compatible = "regulator-fixed";
++		regulator-name = "cam_standby";
++		gpio = <0x38 0x27 0x00>;
++		enable-active-high;
++		regulator-always-on;
++		regulator-boot-on;
++		vin-supply = <0x45>;
++	};
+ };
